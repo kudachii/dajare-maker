@@ -2,10 +2,10 @@ import streamlit as st
 import google.generativeai as genai
 import urllib.parse
 
-# ページ設定
+# 1. ページ設定
 st.set_page_config(page_title="Shall Tell（シャレテール）", page_icon="🎤")
 
-# --- API初期化 (他アプリと共存可能な安定版) ---
+# --- API初期化 ---
 def init_dynamic_model():
     try:
         if "GEMINI_API_KEY" in st.secrets:
@@ -23,30 +23,26 @@ def init_dynamic_model():
 
 model = init_dynamic_model()
 
-# --- リセット機能 (session_stateを完全にクリア) ---
-def reset_app():
-    for key in st.session_state.keys():
-        del st.session_state[key]
-    st.rerun()
+# --- 2. サイドバーにリセット機能を配置 (表示崩れ防止) ---
+with st.sidebar:
+    st.title("Menu")
+    if st.button("🔄 アプリをリセット", use_container_width=True):
+        for key in st.session_state.keys():
+            del st.session_state[key]
+        st.rerun()
+    st.info("お題や判定結果をすべて消去して最初に戻ります。")
 
-# --- メイン UI ---
+# --- 3. メイン UI ---
 st.title("🎤 Shall Tell（シャレテール）")
 st.subheader("〜ダジャレメーカー")
 st.write("解説不要。粋な大人のためのダジャレ・ラボ。")
-
-# 右上にリセットボタンを配置
-col1, col2 = st.columns([0.8, 0.2])
-with col2:
-    if st.button("🔄 Reset"):
-        reset_app()
 
 tab1, tab2 = st.tabs(["✨ Generate (作る)", "⚖️ Judge (判定)"])
 
 # --- ① ネタ生成 ---
 with tab1:
-    # keyを明示的に指定することでリセット対象にする
     word = st.text_input("お題を入力してください", key="word_input_key", placeholder="例：パンダ、電話")
-    if st.button("Shall Tell !", key="btn_gen"):
+    if st.button("Shall Tell !", key="btn_gen", type="primary"):
         if word and model:
             with st.spinner('Thinking...'):
                 prompt = f"「{word}」を使ったダジャレを5つ出力してください。解説、導入文、結びの言葉は一切不要。ダジャレのみを箇条書きで出力してください。"
@@ -56,9 +52,8 @@ with tab1:
 
 # --- ② 判定 ---
 with tab2:
-    # こちらもkeyを指定
     user_input = st.text_area("自慢のダジャレをどうぞ", key="judge_input_key", placeholder="例：アルミ缶の上にあるみかん")
-    if st.button("Judge Me", key="btn_judge"):
+    if st.button("Judge Me", key="btn_judge", type="primary"):
         if user_input and model:
             with st.spinner('Judging...'):
                 prompt = f"""
