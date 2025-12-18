@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import urllib.parse
 
-# 1. ページ設定 (ブラウザのタブ名)
+# ページ設定
 st.set_page_config(page_title="Shall Tell（シャレテール）", page_icon="🎤")
 
 # --- API初期化 (他アプリと共存可能な安定版) ---
@@ -11,7 +11,6 @@ def init_dynamic_model():
         if "GEMINI_API_KEY" in st.secrets:
             api_key = st.secrets["GEMINI_API_KEY"]
             genai.configure(api_key=api_key)
-            # 有料枠でのNotFound回避のため、利用可能リストから取得
             available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
             target_models = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
             selected_name = next((t for t in target_models if t in available_models), None)
@@ -24,14 +23,13 @@ def init_dynamic_model():
 
 model = init_dynamic_model()
 
-# --- リセット機能 ---
+# --- リセット機能 (session_stateを完全にクリア) ---
 def reset_app():
     for key in st.session_state.keys():
         del st.session_state[key]
     st.rerun()
 
 # --- メイン UI ---
-# タイトルを「アイダジャレメーカー」から修正
 st.title("🎤 Shall Tell（シャレテール）")
 st.subheader("〜ダジャレメーカー")
 st.write("解説不要。粋な大人のためのダジャレ・ラボ。")
@@ -44,21 +42,22 @@ with col2:
 
 tab1, tab2 = st.tabs(["✨ Generate (作る)", "⚖️ Judge (判定)"])
 
-# --- ① ネタ生成 (解説を徹底排除) ---
+# --- ① ネタ生成 ---
 with tab1:
-    word = st.text_input("お題を入力してください", key="gen_word_input", placeholder="例：パンダ、電話")
+    # keyを明示的に指定することでリセット対象にする
+    word = st.text_input("お題を入力してください", key="word_input_key", placeholder="例：パンダ、電話")
     if st.button("Shall Tell !", key="btn_gen"):
         if word and model:
             with st.spinner('Thinking...'):
-                # 解説・導入を一切許さないプロンプト
                 prompt = f"「{word}」を使ったダジャレを5つ出力してください。解説、導入文、結びの言葉は一切不要。ダジャレのみを箇条書きで出力してください。"
                 res = model.generate_content(prompt)
                 st.success(f"『{word}』の五連発")
                 st.write(res.text)
 
-# --- ② 判定 (毒舌落語家モード) ---
+# --- ② 判定 ---
 with tab2:
-    user_input = st.text_area("自慢のダジャレをどうぞ", key="judge_input_area", placeholder="例：アルミ缶の上にあるみかん")
+    # こちらもkeyを指定
+    user_input = st.text_area("自慢のダジャレをどうぞ", key="judge_input_key", placeholder="例：アルミ缶の上にあるみかん")
     if st.button("Judge Me", key="btn_judge"):
         if user_input and model:
             with st.spinner('Judging...'):
@@ -74,7 +73,6 @@ with tab2:
                 st.info("Shall Tell's Judgment")
                 st.write(res.text)
                 
-                # シェア文言もShall Tell仕様に
                 share_msg = f"【AIダジャレ判定：Shall Tell】\n「{user_input}」\n\n{res.text}\n#ShallTell #ダジャレメーカー"
                 st.markdown(f'[𝕏で結果をシェアする](https://twitter.com/intent/tweet?text={urllib.parse.quote(share_msg)})')
 
