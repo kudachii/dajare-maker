@@ -1,68 +1,61 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 他のアプリの設定と干渉しないよう、最小限の設定
 st.set_page_config(page_title="AIダジャレメーカー")
 
-def load_model():
-    """
-    他のアプリと共通のAPIキーを使用してモデルを初期化
-    有料枠(Pay-as-you-go)で404が出る問題を回避する設定
-    """
+def init_dynamic_model():
     try:
-        if "GEMINI_API_KEY" in st.secrets:
-            api_key = st.secrets["GEMINI_API_KEY"]
-            genai.configure(api_key=api_key)
+        api_key = st.secrets["GEMINI_API_KEY"]
+        genai.configure(api_key=api_key)
+        
+        # 利用可能なモデルをAPIから直接リストアップ
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # リストの中から優先順位をつけて選択
+        target_models = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
+        
+        selected_name = None
+        for target in target_models:
+            if target in available_models:
+                selected_name = target
+                break
+        
+        # 万が一見つからなければリストの最初の一つを使う
+        if not selected_name and available_models:
+            selected_name = available_models[0]
             
-            # 有料枠で最も安定する 'gemini-1.5-flash' を指定
-            # もしこれで404が出る場合は 'models/gemini-1.5-flash' を自動試行
-            try:
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                # 疎通テスト
-                model.generate_content("Hi", generation_config={"max_output_tokens": 1})
-                return model
-            except:
-                return genai.GenerativeModel('models/gemini-1.5-flash')
+        if selected_name:
+            return genai.GenerativeModel(selected_name), selected_name
         else:
-            st.error("SecretsにAPIキーが見つかりません。")
-            return None
+            return None, "利用可能なモデルがリストに見つかりません。"
     except Exception as e:
-        st.error(f"初期化エラー: {e}")
-        return None
+        return None, str(e)
 
-# モデルの読み込み
-model = load_model()
+model, model_info = init_dynamic_model()
 
-# --- 画面構成 ---
 st.title("🎤 AIダジャレメーカー")
-st.write("お題を入力して、AIにダジャレを作ってもらいましょう。")
+if model_info:
+    st.caption(f"接続モデル: {model_info}")
 
-# 以前の入力と干渉しないよう、独自のkeyを設定
-word = st.text_input("お題（例：電話、カレー）", key="dajare_word_input")
-
-if st.button("ダジャレを生成する", key="dajare_gen_button"):
-    if not word:
-        st.warning("単語を入力してください。")
-    elif model:
-        with st.spinner('AIがネタを考えています...'):
-            try:
-                # シンプルなプロンプトでエラー率を下げる
-                prompt = f"「{word}」を使った面白いダジャレを5つ、箇条書きで教えてください。"
-                response = model.generate_content(prompt)
-                
-                if response.text:
-                    st.success(f"「{word}」のダジャレが完成しました！")
-                    st.write(response.text)
-                else:
-                    st.error("AIから空の返答がありました。")
-                    
-            except Exception as e:
-                # エラーが出た場合、詳細を表示
-                st.error("生成に失敗しました。")
-                st.expander("エラー詳細を確認").write(e)
-    else:
-        st.error("モデルの初期化に失敗しています。")
-
-# --- フッター ---
-st.divider()
-st.caption("© 2025 AIアプリ集 | 第4弾：ダジャレメーカー")
+if not model:
+    st.error(f"モデル接続エラー: {model_info}")
+else:
+    word = st.text_input("お題を入力", key="final_test_input")
+    if st.button("生成"):
+        try:
+            # 安全フィルターをOFFにしてNotFoundを回避する（有料枠なら可能）
+            res = model.generate_content(
+                f"「{word}」でダジャレを5つ作って",
+                safety_settings=[
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                ]
+            )
+            st.write(res.text)
+        except Exception as e:
+            st.error(f"実行エラー: {e}")
+            # リストアップされた全モデルを表示（デバッグ用）
+            with st.expander("利用可能なモデルリストを確認"):
+                st.write([m.name for m in genai.list_models()])
