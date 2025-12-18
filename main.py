@@ -2,10 +2,10 @@ import streamlit as st
 import google.generativeai as genai
 import urllib.parse
 
-# 1. ページ設定
+# ページ設定
 st.set_page_config(page_title="Shall Tell（シャレテール）", page_icon="🎤")
 
-# --- API初期化 ---
+# --- API初期化 (安定版) ---
 def init_dynamic_model():
     try:
         if "GEMINI_API_KEY" in st.secrets:
@@ -23,7 +23,7 @@ def init_dynamic_model():
 
 model = init_dynamic_model()
 
-# --- 2. サイドバー（リセット機能） ---
+# --- サイドバー (リセット機能) ---
 with st.sidebar:
     st.title("Shall Tell Menu")
     if st.button("🔄 アプリをリセット", use_container_width=True):
@@ -32,16 +32,16 @@ with st.sidebar:
         st.rerun()
     st.info("入力をすべて消去します。")
 
-# --- 3. メイン UI ---
+# --- メイン UI ---
 st.title("🎤 Shall Tell（シャレテール）")
 st.subheader("〜ダジャレメーカー")
-st.write("粋な大人は、解説しない。")
+st.write("解説不要。粋な大人のためのダジャレ・ラボ。")
 
 tab1, tab2, tab3 = st.tabs(["✨ Generate", "🏢 Situation", "⚖️ Judge"])
 
 # --- ① ネタ生成 ---
 with tab1:
-    word = st.text_input("お題を入力", key="word_input_key", placeholder="例：パンダ")
+    word = st.text_input("お題を入力してください", key="word_input_key", placeholder="例：パンダ")
     if st.button("Shall Tell !", key="btn_gen", type="primary"):
         if word and model:
             with st.spinner('Thinking...'):
@@ -50,19 +50,26 @@ with tab1:
                 st.success(f"『{word}』の五連発")
                 st.write(res.text)
 
-# --- ② シチュエーション（NEW!） ---
+# --- ② シチュエーション (カスタム対応) ---
 with tab2:
-    st.write("特定の状況で使える「空気を変える一言」を提案します。")
+    st.write("その状況で放つべき「最高の一言」を提案。")
     sit_word = st.text_input("使いたいキーワード", key="sit_word_key", placeholder="例：お茶")
-    context = st.selectbox("シチュエーション", 
-                           ["会議で煮詰まった時", "デートの沈黙", "謝罪のあと", "飲み会の締め", "エレベーターの中"], 
-                           key="sit_context_key")
+    
+    # セレクトボックス
+    options = ["会議で煮詰まった時", "デートの沈黙", "謝罪のあと", "飲み会の締め", "エレベーターの中", "その他（自由入力）"]
+    selected_context = st.selectbox("シチュエーションを選択", options, key="sit_context_key")
+    
+    # 「その他」の場合のみカスタム入力欄を表示
+    final_context = selected_context
+    if selected_context == "その他（自由入力）":
+        final_context = st.text_input("具体的な状況を入力してください", key="custom_context_input", placeholder="例：義理の両親との初対面")
+
     if st.button("一言を授かる", key="btn_sit", type="primary"):
-        if sit_word and model:
+        if sit_word and final_context and model:
             with st.spinner('Preparing...'):
-                prompt = f"{context}という状況で、「{sit_word}」を使ったダジャレを1つだけ提案してください。解説や前置きは一切せず、その「一言」だけを出力してください。"
+                prompt = f"{final_context}という状況で、「{sit_word}」を使ったダジャレを1つだけ提案してください。解説や前置きは一切せず、その「一言」だけを出力してください。"
                 res = model.generate_content(prompt)
-                st.info("放たれるべき一言")
+                st.info(f"【{final_context}】で放つべき一言")
                 st.subheader(f"「{res.text.strip()}」")
 
 # --- ③ 判定 ---
