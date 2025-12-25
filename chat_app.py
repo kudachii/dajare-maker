@@ -3,7 +3,7 @@ import google.generativeai as genai
 import time
 
 # ページ設定
-st.set_page_config(page_title="Shall Tell Live 3.0", page_icon="🎙️", layout="centered")
+st.set_page_config(page_title="Shall Tell Live 3.0", page_icon="🎙️")
 
 # --- API初期化 ---
 @st.cache_resource
@@ -22,7 +22,7 @@ model = init_model()
 
 # キャラクター定義
 CHARACTERS = {
-    "司会（Gemini）": {"icon": "🤖", "prompt": "全体の進行役。知的で明るく、メンターたちに話を振ったり最後をまとめたりする。"},
+    "司会（Gemini）": {"icon": "🤖", "prompt": "全体の進行役。知的で明るく、メンターに話を振る。"},
     "優しさに溢れるメンター": {"icon": "🌈", "prompt": "全肯定で寄り添う。"},
     "ツンデレな指導員": {"icon": "💢", "prompt": "厳しくも愛があるツンデレ。"},
     "頼れるお姉さん": {"icon": "👩‍💼", "prompt": "包み込む大人の余裕。"},
@@ -34,71 +34,59 @@ CHARACTERS = {
 # セッション状態
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "playing" not in st.session_state:
-    st.session_state.playing = False
 
 # --- サイドバー ---
 with st.sidebar:
     st.title("🎙️ 配信コントロール")
     mode = st.radio("配信モードを選択", ["🏆 ダジャレ公開処刑", "💬 戦略・10大ニュース会議"])
-    st.divider()
-
+    
     if mode == "🏆 ダジャレ公開処刑":
-        user_input = st.text_input("いじり倒すネタを入力", key="dajare_key")
-        instruction = "司会がお題を出し、各メンターがいじり、師匠がトドメを刺し、最後に司会が締める流れ。"
+        user_input = st.text_input("いじり倒すネタを入力")
+        instruction = "司会がお題を出し、メンターがいじり、師匠がトドメ、最後に司会が締める。"
     else:
-        user_input = st.text_area("議題・ニュースを入力", key="meeting_key")
-        instruction = "司会が議題を出し、各メンターが賑やかに会議し、最後に司会がエモく締める流れ。"
+        user_input = st.text_area("議題・ニュースを入力")
+        instruction = "司会がお題を出し、メンターが会議し、最後に司会が締める。"
 
     if st.button("🚀 LIVEスタート！", type="primary"):
         if model and user_input:
-            st.session_state.messages = [] # 初期化
+            # 1. 以前のログを消去
+            st.session_state.messages = []
+            
+            # 2. AIにセリフを生成させる
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
             full_prompt = f"内容:「{user_input}」\n設定:\n{mentor_prompts}\n指示: {instruction}\n形式: 名前: セリフ"
             
             with st.spinner("スタジオ準備中..."):
                 res = model.generate_content(full_prompt)
-                for line in res.text.split('\n'):
+                lines = res.text.split('\n')
+                temp_messages = []
+                for line in lines:
                     if ":" in line:
                         name, content = line.split(":", 1)
                         name = name.replace("*", "").strip()
                         if name in CHARACTERS:
-                            st.session_state.messages.append({"role": name, "content": content.strip(), "icon": CHARACTERS[name]["icon"]})
-            st.session_state.playing = True # 演出開始フラグ
+                            temp_messages.append({"role": name, "content": content.strip(), "icon": CHARACTERS[name]["icon"]})
+                
+                # 3. 生成されたメッセージを一つずつセッションに追加して、その都度表示を更新する
+                for msg in temp_messages:
+                    st.session_state.messages.append(msg)
+                    # ここで一度描画を走らせる
+                    st.toast(f"{msg['role']}が発言中...")
+                    time.sleep(1.0) # 思考してるような「間」
+                    st.rerun()
 
     if st.button("🗑️ ログ消去"):
         st.session_state.messages = []
-        st.session_state.playing = False
         st.rerun()
 
 # --- メイン画面 ---
 st.title(f"{mode}")
 
-# メッセージの表示（ここが演出ロジック）
-for i, msg in enumerate(st.session_state.messages):
+# メッセージの表示（セッションにたまっているものを順に表示）
+for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=msg["icon"]):
         st.write(f"**{msg['role']}**")
-        
-        # 新しいメッセージ（まだ演出してないもの）だけタイピング風にする
-        if st.session_state.playing:
-            placeholder = st.empty()
-            full_text = ""
-            for char in msg["content"]:
-                full_text += char
-                placeholder.markdown(full_text + "▌")
-                time.sleep(0.03)
-            placeholder.markdown(full_text)
-            
-            # 全員の演出が終わったらフラグを折るための処理（最後の人までいったら）
-            if i == len(st.session_state.messages) - 1:
-                st.session_state.playing = False
-            
-            time.sleep(0.8) # 次の人が喋るまでの間
-        else:
-            # すでに表示済みのものは一気に表示
-            st.write(msg["content"])
+        st.write(msg["content"])
 
 if not st.session_state.messages:
     st.info("左のパネルからスタートしてね！")
-elif not st.session_state.playing:
-    st.success("🏁 配信終了！")
