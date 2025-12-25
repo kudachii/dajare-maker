@@ -5,109 +5,89 @@ import time
 # ページ設定
 st.set_page_config(page_title="Shall Tell Live 3.0", page_icon="🎙️")
 
-# --- API初期化 (自動探索システム) ---
+# --- API初期化 ---
 @st.cache_resource
 def init_model():
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         try:
             available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            target_priority = ['models/gemini-1.5-flash', 'models/gemini-pro', 'gemini-1.5-flash']
-            selected = next((m for m in target_priority if m in available_models), None)
+            target_priority = ['models/gemini-1.5-flash', 'models/gemini-pro']
+            selected = next((m for m in target_priority if m in available_models), available_models[0] if available_models else None)
             return genai.GenerativeModel(selected) if selected else None
-        except:
-            return None
+        except: return None
     return None
 
 model = init_model()
 
 # キャラクター定義
 CHARACTERS = {
-    "優しさに溢れるメンター": {"icon": "🌈", "prompt": "温かく寄り添う全肯定。感動しやすい。"},
-    "ツンデレな指導員": {"icon": "💢", "prompt": "厳しくも愛があるツンデレ。口が悪いが実は応援している。"},
-    "頼れるお姉さん": {"icon": "👩‍💼", "prompt": "包み込むように励ます大人の女性。上品な口調。"},
-    "論理的コーチ": {"icon": "🧐", "prompt": "感情を排除し論理的に分析する。効率とデータを重視。"},
-    "ギャル先生": {"icon": "✨", "prompt": "超ポジティブにアゲるギャル語。「マジ神」「優勝」が口癖。"},
-    "辛口師匠": {"icon": "🍶", "prompt": "江戸っ子の毒舌落語家。最後にオチをつけ、全員を黙らせる。"}
+    "優しさに溢れるメンター": {"icon": "🌈", "prompt": "全肯定で寄り添う"},
+    "ツンデレな指導員": {"icon": "💢", "prompt": "厳しくも愛があるツンデレ"},
+    "頼れるお姉さん": {"icon": "👩‍💼", "prompt": "包み込む大人の余裕"},
+    "論理적コーチ": {"icon": "🧐", "prompt": "データに基づき論理分析"},
+    "ギャル先生": {"icon": "✨", "prompt": "超ポジティブなアゲアゲ語"},
+    "辛口師匠": {"icon": "🍶", "prompt": "江戸っ子の毒舌。最後に全員を黙らせるオチを"}
 }
 
-# セッション状態の初期化
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- サイドバー：コントロールパネル ---
+# --- サイドバー：ここですべてをコントロール ---
 with st.sidebar:
-    st.title("🎙️ ライブ配信操作盤")
+    st.title("🎙️ 配信コントロールパネル")
     
-    # モード選択
+    # 【切り替えスイッチ】
     mode = st.radio("配信モードを選択", ["🏆 ダジャレ公開処刑", "💬 戦略・10大ニュース会議"])
     
     st.divider()
-    
-    if mode == "🏆 ダジャレ公開処刑":
-        st.subheader("ダジャレ入力欄")
-        user_input = st.text_input("いじり倒すネタを入力", placeholder="例：パンダのパンだ")
-        instruction = "このダジャレを、それぞれのキャラでボコボコにいじり倒して笑いに変えてください。最後に師匠が毒舌で締めて。"
-    else:
-        st.subheader("議題入力欄")
-        user_input = st.text_area("議題・ニュースを入力", placeholder="例：今年の10大ニュースを発表します！")
-        instruction = "この議題について、それぞれのキャラがリアクションしつつ会議してください。くだちいさんを労ったり、未来を語ったり、賑やかに！"
 
-    if st.button("AI会議・スタート！", type="primary"):
+    # モードによって入力欄を動的に切り替え
+    if mode == "🏆 ダジャレ公開処刑":
+        st.subheader("🔥 ネタ投稿スロット")
+        user_input = st.text_input("いじり倒すネタを入力", key="dajare_in")
+        sys_prompt = "このダジャレを6人でチャット形式でボコボコにいじり倒して。最後に師匠がトドメを刺して。"
+    else:
+        st.subheader("📅 アジェンダ入力")
+        user_input = st.text_area("議題やニュースを入力", key="meeting_in")
+        sys_prompt = "この議題（ニュース）について、6人がチャット形式で賑やかに会議して。くだちいさんへの労いや未来への希望を語って。"
+
+    # 実行ボタン
+    if st.button("🚀 LIVEスタート！", type="primary"):
         if model and user_input:
-            st.session_state.messages = [] # クリアして開始
+            st.session_state.messages = [] # 会議のたびにログをリセット
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
             
-            full_prompt = f"""
-            以下の入力について、6人のメンバーでチャット会議を行ってください。
-            入力内容: 「{user_input}」
+            full_prompt = f"以下の内容で6人のチャット会議を作成して。\n内容:「{user_input}」\nキャラ設定:\n{mentor_prompts}\n指示: {sys_prompt}\n形式: 名前: セリフ"
             
-            メンバー設定:
-            {mentor_prompts}
-            
-            指示:
-            {instruction}
-            
-            出力形式（必ず守ってください）:
-            名前: セリフ
-            """
-            
-            with st.spinner("AIたちがスタジオ入りしています..."):
+            with st.spinner("AIたちがスタジオに集結中..."):
                 try:
-                    response = model.generate_content(full_prompt)
-                    lines = response.text.split('\n')
-                    for line in lines:
+                    res = model.generate_content(full_prompt)
+                    for line in res.text.split('\n'):
                         if ":" in line:
-                            parts = line.split(":", 1)
-                            name = parts[0].replace("*", "").strip()
-                            content = parts[1].strip()
+                            name, content = line.split(":", 1)
+                            name = name.replace("*", "").strip()
                             if name in CHARACTERS:
-                                st.session_state.messages.append({"role": name, "content": content, "icon": CHARACTERS[name]["icon"]})
+                                st.session_state.messages.append({"role": name, "content": content.strip(), "icon": CHARACTERS[name]["icon"]})
                     st.rerun()
-                except Exception as e:
-                    st.error(f"エラーが発生しました: {e}")
+                except Exception as e: st.error(f"エラー: {e}")
 
-    if st.button("チャットをリセット"):
+    if st.button("🗑️ ログを全消去"):
         st.session_state.messages = []
         st.rerun()
 
-# --- メイン画面：チャット表示 ---
-st.title(f"🎙️ {mode}会場")
+# --- メイン画面 ---
+st.title(f"{mode}")
+st.write(f"現在のステージ： **{mode}**")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=msg["icon"]):
         st.write(f"**{msg['role']}**")
-        
-        # タイピング演出
         placeholder = st.empty()
         full_text = ""
         for char in msg["content"]:
             full_text += char
             placeholder.markdown(full_text + "▌")
-            time.sleep(0.03) # 少し速めに設定
+            time.sleep(0.04)
         placeholder.markdown(full_text)
-    
-    time.sleep(0.8) # 次の人が喋るまでの「間」
-
-if not st.session_state.messages:
-    st.info("左のパネルから入力して、会議を始めてください！")
+    time.sleep(0.7)
