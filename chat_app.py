@@ -5,24 +5,36 @@ import time
 # ページ設定
 st.set_page_config(page_title="Shall Tell Live!", page_icon="🎙️")
 
-# --- API初期化 (エラー対策版) ---
+# --- API初期化 (自動探索版) ---
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
     
-    # モデル名を 'gemini-1.5-flash' に固定せず、
-    # 互換性のある名前（models/gemini-1.5-flash）を試す設定
     try:
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
-        # テスト実行して確認（エラーが出たら予備のモデル名に切り替え）
-        # ※ここでは定義だけにして、実際の生成時にトライする形にするよ
-    except:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 利用可能なモデルをリストアップして、生成可能なものを探す
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 優先順位をつけてモデルを選択
+        target_priority = ['models/gemini-1.5-flash', 'models/gemini-pro', 'gemini-1.5-flash']
+        selected_model_name = next((m for m in target_priority if m in available_models), None)
+        
+        if not selected_model_name and available_models:
+            selected_model_name = available_models[0] # 見つからなければリストの先頭を使う
+            
+        if selected_model_name:
+            model = genai.GenerativeModel(selected_model_name)
+            st.success(f"System: {selected_model_name} で接続したよ！")
+        else:
+            st.error("利用可能なモデルが見つかりませんでした。")
+            model = None
+    except Exception as e:
+        st.error(f"API初期化中にエラーが発生しました: {e}")
+        model = None
 else:
     st.error("APIキーが見つからないよ！ .streamlit/secrets.toml を確認してね。")
     model = None
 
-# キャラクター定義 (変更なし)
+# キャラクター定義
 CHARACTERS = {
     "優しさに溢れるメンター": {"icon": "🌈", "prompt": "温かく寄り添う全肯定"},
     "ツンデレな指導員": {"icon": "💢", "prompt": "厳しくも愛があるツンデレ"},
@@ -34,11 +46,10 @@ CHARACTERS = {
 
 st.title("🎙️ Shall Tell オート会議システム")
 
-# メッセージをクリアするボタンをサイドバーに追加
-with st.sidebar:
-    if st.button("チャットをリセット"):
-        st.session_state.messages = []
-        st.rerun()
+# ログをクリア
+if st.sidebar.button("チャットをリセット"):
+    st.session_state.messages = []
+    st.rerun()
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -52,7 +63,6 @@ with st.sidebar:
         if not model:
             st.warning("APIの準備ができてないみたい...")
         elif target_dajare:
-            # プロンプト作成 (変更なし)
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
             prompt = f"""
             ユーザーのダジャレ「{target_dajare}」について、以下の6人がチャットで会話しています。
@@ -63,29 +73,22 @@ with st.sidebar:
             
             with st.spinner("AIたちが作戦会議中..."):
                 try:
-                    # ここでモデル名を微調整して再トライする仕組み
-                    try:
-                        response = model.generate_content(prompt)
-                    except:
-                        # 予備のモデル名でリトライ
-                        alt_model = genai.GenerativeModel('gemini-1.5-flash')
-                        response = alt_model.generate_content(prompt)
-
+                    response = model.generate_content(prompt)
                     lines = response.text.split('\n')
                     for line in lines:
                         if ":" in line:
                             parts = line.split(":", 1)
-                            name = parts[0].replace("*", "").strip() # 太字装飾などを除去
+                            name = parts[0].replace("*", "").strip()
                             content = parts[1].strip()
                             if name in CHARACTERS:
                                 st.session_state.messages.append({
                                     "role": name, "content": content, "icon": CHARACTERS[name]["icon"]
                                 })
-                    st.rerun() # 画面を更新して表示を安定させる
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"生成エラー: {e}\n(モデル名 models/gemini-1.5-flash が見つからないようです)")
+                    st.error(f"生成エラー: {e}")
 
-# チャット表示 (変更なし)
+# チャット表示
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=msg["icon"]):
         st.write(f"**{msg['role']}**")
