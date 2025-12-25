@@ -5,10 +5,15 @@ import time
 # ページ設定
 st.set_page_config(page_title="Shall Tell Live!", page_icon="🎙️")
 
-# API初期化（secretsから読み込み）
+# --- API初期化 (ここを修正！) ---
 if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+    # model変数をここで確実に定義
     model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    st.error("APIキーが見つからないよ！ .streamlit/secrets.toml を確認してね。")
+    model = None # 未定義エラーを防ぐためにNoneを入れておく
 
 # キャラクター定義
 CHARACTERS = {
@@ -31,7 +36,9 @@ with st.sidebar:
     target_dajare = st.text_input("いじり倒すダジャレを入力", placeholder="例：内科にないか？")
     
     if st.button("AI会議スタート！"):
-        if target_dajare:
+        if not model:
+            st.warning("APIの準備ができてないみたい...")
+        elif target_dajare:
             # プロンプト作成
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
             prompt = f"""
@@ -50,24 +57,27 @@ with st.sidebar:
             """
             
             with st.spinner("AIたちが作戦会議中..."):
-                response = model.generate_content(prompt)
-                lines = response.text.split('\n')
-                
-                # 1行ずつ解析してセッションに追加
-                for line in lines:
-                    if ":" in line:
-                        name, content = line.split(":", 1)
-                        name = name.strip()
-                        if name in CHARACTERS:
-                            st.session_state.messages.append({
-                                "role": name,
-                                "content": content.strip(),
-                                "icon": CHARACTERS[name]["icon"]
-                            })
+                try:
+                    response = model.generate_content(prompt)
+                    lines = response.text.split('\n')
+                    
+                    # 1行ずつ解析してセッションに追加
+                    for line in lines:
+                        if ":" in line:
+                            parts = line.split(":", 1)
+                            name = parts[0].strip()
+                            content = parts[1].strip()
+                            if name in CHARACTERS:
+                                st.session_state.messages.append({
+                                    "role": name,
+                                    "content": content,
+                                    "icon": CHARACTERS[name]["icon"]
+                                })
+                except Exception as e:
+                    st.error(f"生成エラー: {e}")
 
 # チャット表示
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=msg["icon"]):
         st.write(f"**{msg['role']}**")
         st.write(msg["content"])
-        time.sleep(0.5) # 少しだけディレイを入れてライブ感を出す
