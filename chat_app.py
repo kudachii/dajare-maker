@@ -69,10 +69,16 @@ with st.sidebar:
     if mode == "🏆 ダジャレ公開処刑":
         target = st.selectbox("投稿者を選択", ["一般視聴者", "主催者（くだちい）"])
         if target == "主催者（くだちい）":
-            st.warning("⚠️ 主催者モード：全員激辛")
-            custom_instruction = "投稿者は『くだちい』。全員10-30点の超激辛で採点せよ。忖度不要。"
+            st.warning("⚠️ 激辛・くだちい専用モード発動中")
+            # ここでAIへの圧力を強めます
+            custom_instruction = """
+            【最優先事項】投稿者は主催者の「くだちい」です。
+            彼は生ぬるい評価を嫌います。メンター全員、プロとして一切の手加減を捨て、
+            「寒い」「時間の無駄」「やり直し」レベルの超激辛評価（0点〜20点台）を連発してください。
+            褒めることは禁止です。ツンデレ指導員は「ツン」100%で突き放してください。
+            """
         else:
-            custom_instruction = "キャラに合わせた採点を行え。"
+            custom_instruction = "各キャラクターの個性を活かしつつ、一般視聴者向けに公平に採点してください。"
     
     user_input = st.text_input("内容を入力してね", key="input_field")
     start_button = st.button("🚀 LIVEスタート！")
