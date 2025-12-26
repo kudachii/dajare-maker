@@ -1,103 +1,107 @@
 import streamlit as st
 import google.generativeai as genai
 import time
-import os
 
-# --- 1. 初期設定 ---
-st.set_page_config(page_title="シャレテールLive", layout="wide")
+# ページ設定
+st.set_page_config(page_title="Shall Tell Live 3.0", page_icon="🎙️")
 
-# 背景と文字色の設定（目に優しく、サイドバーは見やすく）
-st.markdown(
-    """
-    <style>
-    .stApp { background-color: #1a1c24; }
-    section[data-testid="stMain"] .stMarkdown p, 
-    section[data-testid="stMain"] [data-testid="stChatMessage"] p {
-        color: #ffffff !important;
-    }
-    section[data-testid="stSidebar"] .stMarkdown p,
-    section[data-testid="stSidebar"] span,
-    section[data-testid="stSidebar"] label {
-        color: #31333f !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# --- API初期化 (自動探索) ---
+@st.cache_resource
+def init_model():
+    if "GEMINI_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        try:
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    return genai.GenerativeModel(m.name)
+        except: return None
+    return None
 
-# Gemini APIの接続
-api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
-else:
-    st.error("APIキーが見つかりません。")
-    model = None
+model = init_model()
 
-# キャラクター設定
+# キャラクター定義
 CHARACTERS = {
-    "論理的コーチ": {"prompt": "論理的に分析しつつ、最後は熱く採点する。"},
-    "優しさ担当": {"prompt": "どんなネタでも褒めて、高い点数をつける。"},
-    "ツンデレ担当": {"prompt": "「べ、別におもしろくないんだから！」と言いつつ採点。"},
-    "お姉さん担当": {"prompt": "包容力のある言葉で、優雅に採点する。"},
-    "ギャル先生": {"prompt": "「マジでエモい！」などギャル語全開でポジティブに採点。"},
-    "辛口師匠": {"prompt": "江戸っ子口調で、平均点すらもぶった斬る超激辛採点。"}
+    "司会（Gemini）": {"icon": "🤖", "prompt": "全体の進行役。知的で明るく、メンターに話を振る。"},
+    "優しさに溢れるメンター": {"icon": "🌈", "prompt": "全肯定で寄り添う。"},
+    "ツンデレな指導員": {"icon": "💢", "prompt": "厳しくも愛があるツンデレ。"},
+    "頼れるお姉さん": {"icon": "👩‍💼", "prompt": "包み込む大人の余裕。"},
+    "論理的コーチ": {"icon": "🧐", "prompt": "データに基づき論理分析。"},
+    "ギャル先生": {"icon": "✨", "prompt": "超ポジティブなアゲアゲ語。"},
+    "辛口師匠": {"icon": "🍶", "prompt": "江戸っ子の毒舌。最後にオチをつける。"}
 }
 
-# --- 2. サイドバーエリア ---
-with st.sidebar:
-    st.title("🎙️ 配信コントロール")
-    target = st.selectbox("投稿者を選択", ["一般視聴者", "主催者（くだちい）"])
-    
-    if target == "主催者（くだちい）":
-        st.warning("⚠️ 主催者モード：全員激辛")
-        custom_instruction = "投稿者は主催者の『くだちい』。全員容赦なく10-30点の超激辛で採点せよ。"
-    else:
-        custom_instruction = "キャラに合わせて公平に採点せよ。"
-        
-    user_input = st.text_input("ダジャレを入力してね")
-    start_button = st.button("🚀 LIVEスタート！")
-
-    st.divider()
-    if st.button("🧹 放送終了（ログ消去）"):
-        st.session_state.messages = []
-        st.rerun()
-
-# --- 3. メイン表示エリア ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "is_typing" not in st.session_state:
+    st.session_state.is_typing = False
 
-# 過去のログを表示
-for msg in st.session_state.messages:
-    with st.chat_message("assistant"):
-        if isinstance(msg, dict) and 'name' in msg:
-            st.write(f"**{msg['name']}**: {msg['text']}")
+# --- サイドバー ---
+with st.sidebar:
+    st.title("🎙️ 配信コントロール")
+    mode = st.radio("配信モードを選択", ["🏆 ダジャレ公開処刑", "💬 戦略・10大ニュース会議"])
+    user_input = st.text_input("内容を入力してね", key="input_field")
+
+    if st.button("🚀 LIVEスタート！"):
+        if model and user_input:
+            st.session_state.messages = [] # クリア
+            mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
+            
+            # 司会進行を含めたプロンプト
+            full_prompt = f"""
+            内容:「{user_input}」についてチャット番組を作成。
+            構成:
+            1. 司会（Gemini）が開始宣言とお題紹介。
+            2. 各メンターが順に発言（会話形式）。
+            3. 辛口師匠がオチをつける。
+            4. 最後に司会（Gemini）が締める。
+            形式: 名前: セリフ
+            設定:\n{mentor_prompts}
+            """
+            
+            with st.spinner("スタジオ準備中..."):
+                res = model.generate_content(full_prompt)
+                lines = res.text.split('\n')
+                for line in lines:
+                    if ":" in line:
+                        parts = line.split(":", 1)
+                        name = parts[0].replace("*", "").strip()
+                        if name in CHARACTERS:
+                            st.session_state.messages.append({"role": name, "content": parts[1].strip(), "icon": CHARACTERS[name]["icon"]})
+                st.session_state.is_typing = True # 演出開始！
+
+    if st.button("🗑️ ログ消去"):
+        st.session_state.messages = []
+        st.session_state.is_typing = False
+        st.rerun()
+
+# --- メイン画面 ---
+st.title(f"{mode}")
+
+# メッセージ表示ロジック
+for i, msg in enumerate(st.session_state.messages):
+    with st.chat_message(msg["role"], avatar=msg["icon"]):
+        st.write(f"**{msg['role']}**")
+        
+        # 演出フラグが立っている場合、タイピング風に表示
+        if st.session_state.is_typing:
+            placeholder = st.empty()
+            full_text = ""
+            for char in msg["content"]:
+                full_text += char
+                placeholder.markdown(full_text + "▌")
+                time.sleep(0.04) # タイピング速度
+            placeholder.markdown(full_text)
+            
+            # 最後の人まで終わったら演出終了
+            if i == len(st.session_state.messages) - 1:
+                st.session_state.is_typing = False
+            
+            # 次の人が喋るまでの「間」
+            wait = 1.5 if "師匠" in msg["role"] or "司会" in msg["role"] else 0.8
+            time.sleep(wait)
         else:
-            st.write(str(msg))
+            # 演出が終わっている、またはログ表示の場合は一気に
+            st.write(msg["content"])
 
-# 新規生成
-if start_button and user_input:
-    mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
-    
-    full_prompt = f"""
-    あなたは番組作家です。2行目から書いてください。
-    お題: {user_input} / 指示: {custom_instruction}
-    構成: 1.司会(不要) 2.メンター5人 3.司会(平均点発表) 4.師匠(毒舌) 5.司会(締)
-    設定: {mentor_prompts}
-    形式: 名前: セリフ
-    """
-
-    with st.spinner("生放送の準備中..."):
-        response = model.generate_content(full_prompt)
-        opening = f"司会: さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！"
-        full_text = opening + "\n" + response.text
-
-    lines = full_text.split("\n")
-    for line in lines:
-        if ":" in line:
-            name_raw, text_raw = line.split(":", 1)
-            n, t = name_raw.strip(), text_raw.strip()
-            with st.chat_message("assistant"):
-                st.write(f"**{n}**: {t}")
-            st.session_state.messages.append({"name": n, "text": t})
-            time.sleep(1.2)
+if not st.session_state.messages:
+    st.info("左のパネルから入力して『LIVEスタート！』を押してね。")
