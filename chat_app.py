@@ -40,21 +40,24 @@ if "is_typing" not in st.session_state:
 st.markdown(
     """
     <style>
+    /* 背景：暗すぎない深い紺色 */
     .stApp {
-        background: linear-gradient(-45deg, #0f172a, #1e293b, #334155);
-        background-size: 400% 400%;
-        animation: gradient 15s ease infinite;
-        color: #f8fafc;
+        background-color: #1a1c24;
+        color: #ffffff;
     }
-    @keyframes gradient {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+    /* 全てのテキストを白に固定 */
+    .stMarkdown, p, span, label {
+        color: #ffffff !important;
     }
-    /* チャット枠を少しだけ明るくして読みやすく */
+    /* チャット枠：視認性を高める */
     [data-testid="stChatMessage"] {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff !important;
+    }
+    /* 入力欄の文字も見やすく */
+    .stTextInput input {
+        color: #000000 !important;
     }
     </style>
     """,
@@ -90,22 +93,22 @@ with st.sidebar:
             # --- ここでプロンプトを組み立て！ ---
             # --- 司会・平均点・主催者激辛モード完全統合プロンプト ---
             full_prompt = f"""
-            あなたはチャット番組「シャレテールLive」の司会兼・構成作家です。
-            必ず以下の【構成】に従って、1人ずつの名前とセリフを生成してください。
+            # 指示: 以下の構成案に従って、テレビ番組の台本を「一字一句」書き出してください。
+            # 必ず「司会: 」のセリフから書き始めること。
 
             【本日のお題】: {user_input}
-            【投稿者】: {target if 'target' in locals() else '一般'}
-            【特別指示】: {custom_instruction}
-
-            【構成ルール（絶対守ってください）】:
-            1. 最初に必ず「司会: 」から始めて、元気よく番組をスタートさせてください。
-            2. 次に、5人のメンターが順に「名前: セリフ」の形式で採点（100点満点）を行ってください。
-            3. その後、必ず「司会: 」が全員の平均点を算出して発表してください。
-            4. 次に「辛口師匠: 」が江戸っ子口調で平均点をぶった斬り、最終スコアをズバッと言ってください。
-            5. 最後に必ず「司会: 」が番組を締めて終わってください。
-
             【設定】:
             {mentor_prompts}
+
+            【番組台本構成（この順に書き出して！）】:
+            1. 司会: 「さあ始まりました！シャレテールLive！本日のお題は…」
+            2. 各メンター（5人分）: 「（感想）... 〇〇点！」
+            3. 司会: 「皆さんありがとうございます。集計した平均点は〇〇点です！」
+            4. 辛口師匠: 「（毒舌）... 俺のスコアは〇〇点だ！」
+            5. 司会: 「うわぁ、厳しい！というわけで本日はここまで！」
+
+            【出力形式】
+            名前: セリフ
             """
             
             # (以下、生成と表示のロジック...)
