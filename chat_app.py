@@ -75,10 +75,12 @@ with st.sidebar:
     if st.button("🧹 放送終了（ログ消去）"):
         st.session_state.messages = []
         st.rerun()
+# --- ここからメインエリア（インデントを一番左に戻す） ---
+
+# 1. ログの初期化と表示（安全装置付き）
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 安全装置付きの過去ログ表示
 for msg in st.session_state.messages:
     with st.chat_message("assistant"):
         if isinstance(msg, dict) and 'name' in msg:
@@ -86,19 +88,7 @@ for msg in st.session_state.messages:
         else:
             st.write(str(msg))
 
-# 新しい放送の実行
-if start_button and user_input:
-
-# --- メイン画面での表示処理 ---
-# これまでのメッセージを再表示（これがないと画面が消えます）
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-for msg in st.session_state.messages:
-    with st.chat_message("assistant"):
-        st.write(f"**{msg['name']}**: {msg['text']}")
-
-# ボタンが押された時の新規生成処理
+# 2. 「LIVEスタート！」が押された時の処理
 if start_button and user_input:
     # メンター設定の準備
     mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
@@ -107,7 +97,7 @@ if start_button and user_input:
     あなたは番組構成作家です。2行目（論理的コーチ）から台本を書いてください。
     【お題】: {user_input}
     【指示】: {custom_instruction}
-    【構成】: 1.司会(不要) 2.メンター5人(順に) 3.司会(平均点) 4.師匠(毒舌/最終) 5.司会(締)
+    【構成】: 1.司会(不要) 2.メンター5人 3.司会(平均点) 4.師匠(毒舌) 5.司会(締)
     【設定】: {mentor_prompts}
     形式: 名前: セリフ
     """
@@ -117,24 +107,23 @@ if start_button and user_input:
         opening = f"司会: さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！"
         full_text = opening + "\n" + response.text
 
-    # 1行ずつ「間」を置いて表示し、保存する
+    # 1行ずつ表示して保存する
     lines = full_text.split("\n")
     for line in lines:
         if ":" in line:
             name, text = line.split(":", 1)
-            name = name.strip()
-            text = text.strip()
+            name_clean = name.strip()
+            text_clean = text.strip()
             
-            # 画面に表示
+            # 画面に「間」を持って表示
             with st.chat_message("assistant"):
-                st.write(f"**{name}**: {text}")
+                st.write(f"**{name_clean}**: {text_clean}")
             
-            # セッションに保存
-            st.session_state.messages.append({"name": name, "text": text})
+            # セッション（記録）に保存
+            st.session_state.messages.append({"name": name_clean, "text": text_clean})
             
-            # ライブ感のある「間」
+            # 1.2秒待機してライブ感を出す
             time.sleep(1.2)
-
 # --- メイン画面での実行エリア（ここをサイドバーの外に出す） ---
 if start_button:
     if model and user_input:
