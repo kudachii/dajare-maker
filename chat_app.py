@@ -40,30 +40,27 @@ if "is_typing" not in st.session_state:
 st.markdown(
     """
     <style>
-    /* 背景：暗すぎない深い紺色 */
+    /* メインエリア（チャット側）の背景と文字色 */
     .stApp {
         background-color: #1a1c24;
-        color: #ffffff;
     }
-    /* 全てのテキストを白に固定 */
-    .stMarkdown, p, span, label {
+    /* メインエリアのテキストだけを白くする（サイドバーを除外） */
+    [data-testid="stHeader"], [data-testid="stChatMessage"] p, .stMarkdown p {
         color: #ffffff !important;
     }
-    /* チャット枠：視認性を高める */
+    /* チャットボックスの枠 */
     [data-testid="stChatMessage"] {
         background-color: rgba(255, 255, 255, 0.1) !important;
         border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #ffffff !important;
     }
-    /* 入力欄の文字も見やすく */
-    .stTextInput input {
-        color: #000000 !important;
+    /* サイドバーの文字色は黒（デフォルト）のままにする */
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
+        color: #31333f !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
-
 # --- サイドバー ---
 with st.sidebar:
     st.title("🎙️ 配信コントロール")
@@ -92,22 +89,24 @@ with st.sidebar:
             
             # --- ここでプロンプトを組み立て！ ---
             # --- 司会・平均点・主催者激辛モード完全統合プロンプト ---
+            # --- 司会復活・台本固定プロンプト ---
             full_prompt = f"""
-            # 指示: 以下の構成案に従って、テレビ番組の台本を「一字一句」書き出してください。
-            # 必ず「司会: 」のセリフから書き始めること。
+            # 【絶対厳守】書き出しは必ず「司会: 」という言葉から始めてください。
+            # キャラクターのセリフ以外の解説文などは一切不要です。
 
-            【本日のお題】: {user_input}
-            【設定】:
+            内容: 「{user_input}」についてのチャット番組「シャレテールLive」
+
+            【登場人物】
             {mentor_prompts}
 
-            【番組台本構成（この順に書き出して！）】:
-            1. 司会: 「さあ始まりました！シャレテールLive！本日のお題は…」
-            2. 各メンター（5人分）: 「（感想）... 〇〇点！」
-            3. 司会: 「皆さんありがとうございます。集計した平均点は〇〇点です！」
-            4. 辛口師匠: 「（毒舌）... 俺のスコアは〇〇点だ！」
-            5. 司会: 「うわぁ、厳しい！というわけで本日はここまで！」
+            【番組の進行（この順で1行ずつ出力）】
+            1. 司会: 開始宣言とお題紹介（例：さあ始まりました！本日のお題は「{user_input}」です！）
+            2. 各メンター（5人）: キャラ設定に基づいた感想と採点（100点満点）
+            3. 司会: 5人の平均点を計算して発表
+            4. 辛口師匠: 平均点をぶった斬る毒舌と、最終スコアの発表
+            5. 司会: 締めの挨拶
 
-            【出力形式】
+            形式:
             名前: セリフ
             """
             
