@@ -101,7 +101,26 @@ if start_button and user_input:
     if model:
         st.session_state.messages = []
         mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
-        full_prompt = f"【お題】:「{user_input}」\n{custom_instruction}\n【キャラ】:\n{mentor_prompts}\n形式：名前:セリフ で台本を作成せよ。"
+        # --- 修正版：プロンプト部分 ---
+        full_prompt = f"""
+        あなたは超一流の番組構成作家です。視聴者が釘付けになるような爆笑チャット番組の台本を書いてください。
+
+        【本日のお題】: 「{user_input}」
+        【特別ルール】: {custom_instruction}
+
+        【登場人物（全員必ず一度は発言させること！）】:
+        {mentor_prompts}
+
+        【構成ルール（厳守）】:
+        1. 「司会（Gemini）」のハイテンションな第一声。
+        2. メンター陣5人（優しさ、ツンデレ、お姉さん、論理的コーチ、ギャル先生）が、**必ず一人ずつ順番に**感想と採点を述べる。
+           ※特に「論理적コーチ」は、データの観点から冷徹に分析すること。
+        3. 再び「司会」が平均点を発表。
+        4. 「辛口師匠」が全員を一喝し、トドメの最終点数を出す。
+        5. 「司会」が締める。
+
+        【形式】: 名前: セリフ
+        """
         
         with st.spinner("スタジオの照明、点灯中..."):
             try:
