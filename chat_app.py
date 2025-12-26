@@ -47,16 +47,20 @@ with st.sidebar:
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
             
             # 司会進行を含めたプロンプト
-            full_prompt = f"""
-            内容:「{user_input}」についてチャット番組を作成。
-            構成:
-            1. 司会（Gemini）が開始宣言とお題紹介。
-            2. 各メンターが順に発言（会話形式）。
-            3. 辛口師匠がオチをつける。
-            4. 最後に司会（Gemini）が締める。
-            形式: 名前: セリフ
-            設定:\n{mentor_prompts}
-            """
+            # --- 修正後のプロンプト ---
+full_prompt = f"""
+内容:「{user_input}」についてチャット番組を作成。
+
+構成:
+1. 司会（Gemini）が元気よく開始を宣言し、今回のお題（ダジャレ）を紹介する。
+2. 各メンターが順番に感想を述べる。その際、自分のキャラらしい基準で「個別の採点（100点満点）」を必ず最後に言うこと。
+3. 最後に「辛口師匠」が全員のコメントをぶった斬り、江戸っ子らしい毒舌でオチをつけつつ、最終的な「総合スコア（100点満点）」をズバッと発表する。
+4. 最後に司会（Gemini）が、スコアの結果を受けて番組を締める。
+
+形式: 名前: セリフ
+設定:
+{mentor_prompts}
+"""
             
             with st.spinner("スタジオ準備中..."):
                 res = model.generate_content(full_prompt)
