@@ -59,30 +59,36 @@ with st.sidebar:
 
     if st.button("🚀 LIVEスタート！"):
         if model and user_input:
-            st.session_state.messages = [] 
+            # 1. 履歴をリセット
+            st.session_state.messages = []
+            
+            # 2. 【ここが重要！】司会の第一声をAI生成の「前」に強制追加
+            opening_text = f"さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！メンターの皆さん、いかがでしょうか？"
+            st.session_state.messages.append({
+                "role": "司会（Gemini）", 
+                "content": opening_text, 
+                "icon": CHARACTERS["司会（Gemini）"]["icon"]
+            })
+
+            # 3. AIには「続き」だけを書かせる
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
-            
-            # --- ここでプロンプトを組み立て！ ---
             full_prompt = f"""
-            あなたは人気チャット番組の構成作家です。以下の内容で会話劇を書いてください。
+            あなたは番組の構成作家です。
+            先ほど司会が「{opening_text}」と言って番組が開始されました。
+            あなたは、その「続き」から台本を書いてください。司会の最初の挨拶は書かないでください。
 
-            【本日のお題】: 「{user_input}」
-            【追加指示】: {custom_instruction}
+            【本日のお題】: {user_input}
+            【特別ルール】: {custom_instruction}
 
-            【登場人物と役割】:
-            {mentor_prompts}
+            【構成案】
+            1. メンター5人（優しさ、ツンデレ、お姉さん、論理、ギャル）: 順に感想と採点。
+            2. 司会（Gemini）: 5人の平均点を発表。
+            3. 辛口師匠: 毒舌で総評し、最終点数を発表。
+            4. 司会（Gemini）: 番組を締める。
 
-            【番組の進行ルール（厳守）】:
-            1. [オープニング]: 司会（Gemini）が開始を宣言し、お題を紹介。
-            2. [メンター陣の採点]: 5人のメンターが感想を述べ、最後に必ず「〇〇点」と採点する。
-            3. [平均点発表]: 司会（Gemini）が5人の平均点を計算して発表する。
-            4. [師匠の総評]: 辛口師匠が平均点とネタを毒舌でぶった斬り、最後に「俺の評価は〇〇点だ！」とオチをつける。
-            5. [エンディング]: 司会（Gemini）が圧倒されつつ番組を締める。
-
-            【出力形式】: 名前: セリフ
+            【形式】: 名前: セリフ
             """
-            
-            # (以下、生成と表示のロジック...)
+
             with st.spinner("スタジオ準備中..."):
                 res = model.generate_content(full_prompt)
                 lines = res.text.split('\n')
@@ -90,9 +96,16 @@ with st.sidebar:
                     if ":" in line:
                         parts = line.split(":", 1)
                         name = parts[0].replace("*", "").strip()
+                        # キャラクター名が一致する場合のみ追加
                         if name in CHARACTERS:
-                            st.session_state.messages.append({"role": name, "content": parts[1].strip(), "icon": CHARACTERS[name]["icon"]})
-                st.session_state.is_typing = True # 演出開始！
+                            st.session_state.messages.append({
+                                "role": name, 
+                                "content": parts[1].strip(), 
+                                "icon": CHARACTERS[name]["icon"]
+                            })
+                
+                # 表示演出を開始
+                st.session_state.is_typing = True
 
     if st.button("🗑️ ログ消去"):
         st.session_state.messages = []
