@@ -36,39 +36,40 @@ if "is_typing" not in st.session_state:
     st.session_state.is_typing = False
 
 # --- サイドバー ---
+# --- サイドバーのモード切替と入力部分を修正 ---
 with st.sidebar:
     st.title("🎙️ 配信コントロール")
     mode = st.radio("配信モードを選択", ["🏆 ダジャレ公開処刑", "💬 戦略・10大ニュース会議"])
-    user_input = st.text_input("内容を入力してね", key="input_field")
+    
+    st.divider()
+    
+    # 投稿者を選択できるようにする
+    contributor = st.selectbox("投稿者を選択", ["一般視聴者", "主催者（くだちい）"])
+    
+    if contributor == "主催者（くだちい）":
+        st.warning("⚠️ 主催者モード：メンター全員が「辛口」になります。")
+        user_input = st.text_input("渾身のネタを投入してください", key="owner_dajare")
+        # 主催者専用の激辛プロンプト
+        custom_instruction = """
+        【特別ルール：主催者公開処刑】
+        今日は主催者の「くだちい」が自らネタを投稿しました。
+        そのため、普段は優しいメンターたちも「身内への厳しさ」として、全員【超辛口】で評価してください。
+        「そんなネタでブログが書けると思ってるの？」「修行が足りない」など、愛の鞭をお願いします。
+        司会（Gemini）も、フォローしつつも苦笑いするような態度で。
+        平均点はあえて厳しく（10点〜30点台）算出してください。
+        """
+    else:
+        user_input = st.text_input("ネタを入力（一般枠）", key="guest_dajare")
+        custom_instruction = "通常の採点ルールで。メンターはそれぞれのキャラ設定を守ってください。"
 
     if st.button("🚀 LIVEスタート！"):
-        if model and user_input:
-            st.session_state.messages = [] # クリア
-            mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
-            
-            # --- 司会進行・採点システム完全固定プロンプト ---
-            # --- 平均点算出・司会進行プロンプト ---
-            full_prompt = f"""
-            あなたは人気チャット番組の構成作家です。以下の内容で、視聴者が盛り上がる「会話劇」を書き上げてください。
-
-            【本日のお題（ダジャレ）】: 「{user_input}」
-
-            【登場人物と役割】:
-            {mentor_prompts}
-
-            【番組の進行ルール（厳守）】:
-            1. [オープニング]: 司会（Gemini）が元気よく開始を宣言し、お題のダジャレを紹介する。
-            2. [メンター陣の採点]: 司会に振られた順に、5人のポジティブメンター（優しさ、ツンデレ、お姉さん、論理的、ギャル）が感想を述べ、最後に「〇〇点」と100点満点で採点する。
-            3. [平均点発表]: 5人の発言が終わった後、司会（Gemini）が「皆さんの採点を集計しました！平均点は〇〇点です！」と発表する。
-            4. [師匠の総評]: 平均点を聞いた「辛口師匠」が、江戸っ子の毒舌でその結果とダジャレをぶった斬り、最後に「俺の評価は〇〇点だ！」とオチをつける。
-            5. [エンディング]: 司会（Gemini）が師匠の評価に圧倒されつつ、明るく番組を締める。
-
-            【出力形式】:
-            名前: セリフ
-            （※必ず「名前: セリフ」の形式で出力してください）
-            """
-    
-            
+        # (中略)
+        # プロンプトの instruction 部分に custom_instruction を組み込む
+        full_prompt = f"""
+        (前述の構成案...)
+        指示: {custom_instruction}
+        内容: 「{user_input}」
+        """
             with st.spinner("スタジオ準備中..."):
                 res = model.generate_content(full_prompt)
                 lines = res.text.split('\n')
