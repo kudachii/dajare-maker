@@ -77,16 +77,25 @@ with st.sidebar:
         st.rerun()
 # --- ここからメインエリア（インデントを一番左に戻す） ---
 
-# 1. ログの初期化と表示（安全装置付き）
+# --- ここから左端（インデントなし）で書き始める ---
+
+# 1. ログの初期化
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# 2. 過去のメッセージを表示（安全装置付き！）
 for msg in st.session_state.messages:
     with st.chat_message("assistant"):
+        # 古いデータ（単なる文字列）でも、新しいデータ（辞書）でも両方対応
         if isinstance(msg, dict) and 'name' in msg:
             st.write(f"**{msg['name']}**: {msg['text']}")
         else:
+            # 辞書じゃない古いデータはそのまま文字として出す
             st.write(str(msg))
+
+# 3. LIVEスタートボタンが押された時の処理
+if start_button and user_input:
+    # ...（ここから下の「AI生成・表示処理」はさっきのままでOK！）
 
 # 2. 「LIVEスタート！」が押された時の処理
 if start_button and user_input:
@@ -124,6 +133,7 @@ if start_button and user_input:
             
             # 1.2秒待機してライブ感を出す
             time.sleep(1.2)
+            
 # --- メイン画面での実行エリア（ここをサイドバーの外に出す） ---
 if start_button:
     if model and user_input:
