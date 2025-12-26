@@ -61,7 +61,7 @@ CHARACTERS = {
     "優しさに溢れるメンター": {"icon": "🌈", "prompt": "全肯定。仏の採点。"},
     "ツンデレな指導員": {"icon": "💢", "prompt": "ツン100%から微デレ。"},
     "頼れるお姉さん": {"icon": "👩‍💼", "prompt": "余裕のある色気と鋭い指摘。"},
-    "論理적コーチ": {"icon": "🧐", "prompt": "緻密な分析と0.1点刻みの採点。"},
+    "論理的なビジネスコーチ": {"icon": "🧐", "prompt": "緻密な分析と0.1点刻みの採点。"},
     "ギャル先生": {"icon": "✨", "prompt": "パッション全振り。最高得点。"},
     "辛口師匠": {"icon": "🍶", "prompt": "江戸前っ子。全員を一喝する毒舌。"}
 }
@@ -149,10 +149,10 @@ with chat_box:
                 for char in msg["content"]:
                     txt += char
                     p.markdown(txt + "▌")
-                    time.sleep(0.12) # 音声の長さに合わせ少し調整
+                    time.sleep(0.15)# 音声の長さに合わせ少し調整
                 p.markdown(txt)
                 if i == len(st.session_state.messages) - 1:
                     st.session_state.is_typing = False
-                time.sleep(0.9) # 次の人が喋るまでの「間」
+                time.sleep(1.0) # 次の人が喋るまでの「間」
             else:
                 st.write(msg["content"])
