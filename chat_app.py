@@ -100,33 +100,35 @@ with st.sidebar:
         st.rerun()
 
 # --- メイン画面 ---
+# --- 6. メイン画面 ---
 st.title(f"{mode}")
 
-# メッセージ表示ロジック
-for i, msg in enumerate(st.session_state.messages):
-    with st.chat_message(msg["role"], avatar=msg["icon"]):
-        st.write(f"**{msg['role']}**")
-        
-        # 演出フラグが立っている場合、タイピング風に表示
-        if st.session_state.is_typing:
-            placeholder = st.empty()
-            full_text = ""
-            for char in msg["content"]:
-                full_text += char
-                placeholder.markdown(full_text + "▌")
-                time.sleep(0.04) # タイピング速度
-            placeholder.markdown(full_text)
+# チャット欄の枠（高さ）を固定する！
+# height の数値（500）を調整すれば、お好みの高さにできます
+chat_container = st.container(height=600, border=True)
+
+with chat_container:
+    # この中でメッセージを表示
+    for i, msg in enumerate(st.session_state.messages):
+        with st.chat_message(msg["role"], avatar=msg["icon"]):
+            st.write(f"**{msg['role']}**")
             
-            # 最後の人まで終わったら演出終了
-            if i == len(st.session_state.messages) - 1:
-                st.session_state.is_typing = False
-            
-            # 次の人が喋るまでの「間」
-            wait = 1.5 if "師匠" in msg["role"] or "司会" in msg["role"] else 0.8
-            time.sleep(wait)
-        else:
-            # 演出が終わっている、またはログ表示の場合は一気に
-            st.write(msg["content"])
+            if st.session_state.is_typing:
+                placeholder = st.empty()
+                full_text = ""
+                for char in msg["content"]:
+                    full_text += char
+                    placeholder.markdown(full_text + "▌")
+                    time.sleep(0.03)
+                placeholder.markdown(full_text)
+                
+                if i == len(st.session_state.messages) - 1:
+                    st.session_state.is_typing = False
+                
+                wait = 1.2 if "師匠" in msg["role"] or "司会" in msg["role"] else 0.6
+                time.sleep(wait)
+            else:
+                st.write(msg["content"])
 
 if not st.session_state.messages:
     st.info("左のパネルから入力して『LIVEスタート！』を押してね。")
