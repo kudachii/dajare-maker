@@ -57,8 +57,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- サイドバー ---
-# --- サイドバーの設定エリア ---
 # --- サイドバーの設定エリア ---
 with st.sidebar:
     st.title("🎙️ 配信コントロール")
@@ -77,6 +75,19 @@ with st.sidebar:
     if st.button("🧹 放送終了（ログ消去）"):
         st.session_state.messages = []
         st.rerun()
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# 安全装置付きの過去ログ表示
+for msg in st.session_state.messages:
+    with st.chat_message("assistant"):
+        if isinstance(msg, dict) and 'name' in msg:
+            st.write(f"**{msg['name']}**: {msg['text']}")
+        else:
+            st.write(str(msg))
+
+# 新しい放送の実行
+if start_button and user_input:
 
 # --- メイン画面での表示処理 ---
 # これまでのメッセージを再表示（これがないと画面が消えます）
