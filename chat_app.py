@@ -82,39 +82,44 @@ with st.sidebar:
             st.session_state.messages = [] 
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
             
-            # 司会を1行目に強制的に固定するプロンプト
+            # AIへの指示書
             full_prompt = f"""
             あなたは番組の構成作家です。
-            以下の「構成案」の通りに、2行目（論理的コーチ）から書き出してください。
-            1行目の司会のセリフは私が用意しました。
+            以下の「構成案」の通りに、2行目（論理的コーチ）から順に書き出してください。
+            1行目の司会のセリフはシステム側で自動生成するので、あなたは書かないでください。
 
             【本日のお題】: {user_input}
-            【特別指示】: {custom_instruction}（※主催者なら全員10点〜30点の激辛評価にすること）
+            【特別指示】: {custom_instruction}
 
             【構成案】
-            1. 司会: 「さあ始まりました！シャレテールLive！本日のお題は『{user_input}』です！」（←これは出力不要）
-            2. 論理的コーチ〜ギャル先生（5人）: 各自の感想と採点。
+            1. (司会セリフは不要)
+            2. 論理的コーチ、お姉さん、ツンデレ、優しさ、ギャル先生（5人）: 感想と採点。
             3. 司会: 5人の平均点を計算して発表。
-            4. 辛口師匠: 平均点をぶった斬り、最終スコアを発表してオチをつける。
-            5. 司会: 番組を締める。
+            4. 辛口師匠: 平均点をぶった斬り、最終スコアを発表。
+            5. 司会: 番組の締めの挨拶。
 
-            【設定】:
+            【キャラクター設定】:
             {mentor_prompts}
 
             【形式】: 名前: セリフ
             """
 
-            # --- ここがポイント！ ---
-            # AIからの回答の先頭に、無理やり「司会の第一声」をくっつけます
-            opening = f"司会: さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！\n"
-            response = model.generate_content(full_prompt)
-            full_text = opening + response.text  # 司会のセリフ ＋ AIの回答
-            
-            # あとはこの full_text を1行ずつ表示する処理へ...
-    
+            # AI生成と司会の合体
+            with st.spinner("生放送の準備中..."):
+                response = model.generate_content(full_prompt)
+                # 司会の第一声をプログラムで強制追加
+                opening = f"司会: さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！\n"
+                full_text = opening + response.text
 
-            
-            
+            # 1行ずつチャット形式で画面に出す処理
+            lines = full_text.split("\n")
+            for line in lines:
+                if ":" in line:
+                    name, text = line.split(":", 1)
+                    with st.chat_message("assistant"):
+                        st.write(f"**{name.strip()}**: {text.strip()}")
+                    time.sleep(1.0) # 1秒ずつ表示してライブ感を出す
+                
             # (以下、生成と表示のロジック...)
             
             with st.spinner("スタジオ準備中..."):
