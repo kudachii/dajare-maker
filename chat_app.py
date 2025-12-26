@@ -58,67 +58,72 @@ st.markdown(
 )
 
 # --- サイドバー ---
+# --- サイドバーの設定エリア ---
 with st.sidebar:
     st.title("🎙️ 配信コントロール")
-    
-    # 1. メインモードの選択
     mode = st.radio("配信モードを選択", ["🏆 ダジャレ公開処刑", "💬 戦略・10大ニュース会議"])
     
     st.divider()
 
-    # 2. ダジャレモードの時だけ「誰が投稿したか」を選択
-    custom_instruction = ""
-    if mode == "🏆 ダジャレ公開処刑":
-        target = st.selectbox("投稿者を選択", ["一般視聴者", "主催者（くだちい）"])
-        if target == "主催者（くだちい）":
-            st.warning("⚠️ 主催者モード：メンターが全員【辛口】になります")
-            custom_instruction = "【特別ルール】投稿者は主催者の「くだちい」です。身内への厳しさとして、メンター全員が容赦ない『超辛口』で採点（10点〜30点台）してください。"
-        else:
-            custom_instruction = "通常のキャラ設定に合わせた採点を行ってください。"
+    # 投稿者を選択（ダジャレモードの時のみ有効な指示を作成）
+    target = st.selectbox("投稿者を選択", ["一般視聴者", "主催者（くだちい）"])
     
+    if target == "主催者（くだちい）":
+        st.warning("⚠️ 主催者モード：全員激辛になります")
+        custom_instruction = "投稿者は番組主催者の『くだちい』です。身内への厳しさとして、メンター全員が容赦ない『超辛口』で採点（10点〜30点台）してください。一切忖度しないでください。"
+    else:
+        custom_instruction = "各キャラクターの性格に合わせて、一般視聴者のネタを公平に採点してください。"
+        
     user_input = st.text_input("内容を入力してね", key="input_field")
-    if st.button("🚀 LIVEスタート！"):
-        if model and user_input:
-            st.session_state.messages = [] 
-            mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
-            
-            # AIへの指示書
-            full_prompt = f"""
-            あなたは番組の構成作家です。
-            以下の「構成案」の通りに、2行目（論理的コーチ）から順に書き出してください。
-            1行目の司会のセリフはシステム側で自動生成するので、あなたは書かないでください。
+    # ボタンを変数に代入
+    start_button = st.button("🚀 LIVEスタート！")
 
-            【本日のお題】: {user_input}
-            【特別指示】: {custom_instruction}
+# --- メイン画面での実行エリア（ここをサイドバーの外に出す） ---
+if start_button:
+    if model and user_input:
+        st.session_state.messages = [] 
+        mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
+        
+        # AIへの完全な指示書
+        full_prompt = f"""
+        あなたは人気チャット番組「シャレテールLive」の構成作家です。
+        以下の指示に従い、一字一句、台本を書き出してください。
+        1行目の司会の開始宣言はシステム側で用意するので、あなたは「2行目の論理的コーチ」から書き始めてください。
 
-            【構成案】
-            1. (司会セリフは不要)
-            2. 論理的コーチ、お姉さん、ツンデレ、優しさ、ギャル先生（5人）: 感想と採点。
-            3. 司会: 5人の平均点を計算して発表。
-            4. 辛口師匠: 平均点をぶった斬り、最終スコアを発表。
-            5. 司会: 番組の締めの挨拶。
+        【本日のお題】: 「{user_input}」
+        【特別指示】: {custom_instruction}
 
-            【キャラクター設定】:
-            {mentor_prompts}
+        【台本作成ルール（厳守）】:
+        1. 出力の1行目は「論理的コーチ: 」から始めてください。
+        2. 各メンターは、今回の追加指示（特に主催者の場合は超辛口）を最優先して、手加減なしに「〇〇点」と採点してください。
+        3. 5人の採点後、司会が必ず「計算した平均点は〇〇点です」と発表してください。
+        4. 辛口師匠は、平均点すらも「甘ぇ！」とぶった斬り、さらに低い「最終スコア」を叩き出してください。
+        5. 最後は司会が、ボコボコにされた現場を必死にまとめて締めてください。
 
-            【形式】: 名前: セリフ
-            """
+        【名前リスト】: 論理的コーチ, 優しさ担当, ツンデレ担当, お姉さん担当, ギャル先生, 司会, 辛口師匠
 
-            # AI生成と司会の合体
-            with st.spinner("生放送の準備中..."):
-                response = model.generate_content(full_prompt)
-                # 司会の第一声をプログラムで強制追加
-                opening = f"司会: さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！\n"
-                full_text = opening + response.text
+        【キャラクター設定】:
+        {mentor_prompts}
 
-            # 1行ずつチャット形式で画面に出す処理
-            lines = full_text.split("\n")
-            for line in lines:
-                if ":" in line:
-                    name, text = line.split(":", 1)
-                    with st.chat_message("assistant"):
-                        st.write(f"**{name.strip()}**: {text.strip()}")
-                    time.sleep(1.0) # 1秒ずつ表示してライブ感を出す
+        【出力形式】: 名前: セリフ
+        """
+
+        # AI生成と司会の第一声を強制合体
+        with st.spinner("生放送の準備中..."):
+            response = model.generate_content(full_prompt)
+            # 司会の第一声をプログラムで先頭に挿入
+            opening = f"司会: さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！\n"
+            full_text = opening + response.text
+
+        # 1行ずつチャット形式でメイン画面に表示
+        lines = full_text.split("\n")
+        for line in lines:
+            if ":" in line:
+                name, text = line.split(":", 1)
+                with st.chat_message("assistant"):
+                    # メイン画面に「名前: セリフ」の形式で表示
+                    st.write(f"**{name.strip()}**: {text.strip()}")
+                time.sleep(1.0) # 1秒のディレイでライブ感を演出
                 
             # (以下、生成と表示のロジック...)
             
