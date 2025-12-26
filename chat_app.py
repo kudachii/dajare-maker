@@ -6,18 +6,29 @@ import time
 st.set_page_config(page_title="Shall Tell Live 3.0", page_icon="🎙️", layout="wide")
 
 # --- 2. API初期化 ---
+# --- 2. API初期化 (確実に動くモデルを自動探索) ---
 @st.cache_resource
 def init_model():
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         try:
-            return genai.GenerativeModel('gemini-1.5-flash')
-        except:
-            return genai.GenerativeModel('gemini-pro')
+            # 使えるモデルをリストアップして、適切なものを選ぶ
+            models = [m.name for m in genai.list_models() 
+                     if 'generateContent' in m.supported_generation_methods]
+            
+            # 優先順位をつけて選択
+            for target in ["models/gemini-1.5-flash", "models/gemini-pro", "gemini-1.5-flash", "gemini-pro"]:
+                if target in models:
+                    return genai.GenerativeModel(target)
+            
+            # どれも見つからなければ最初に見つかったものを使う
+            if models:
+                return genai.GenerativeModel(models[0])
+        except Exception as e:
+            st.error(f"モデルの取得中にエラーが発生しました: {e}")
+            return None
     return None
-
-model = init_model()
-
+    
 # --- 3. キャラクター定義 ---
 CHARACTERS = {
     "司会（Gemini）": {"icon": "🤖", "prompt": "進行役。知的で明るくメンターに振る。"},
