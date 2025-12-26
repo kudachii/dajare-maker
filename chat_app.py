@@ -79,25 +79,21 @@ with st.sidebar:
 
 # --- ここから左端（インデントなし）で書き始める ---
 
+# --- ここから左端（インデントなし）で貼り付け ---
+
 # 1. ログの初期化
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 2. 過去のメッセージを表示（安全装置付き！）
+# 2. 過去のメッセージを表示（安全装置付き）
 for msg in st.session_state.messages:
     with st.chat_message("assistant"):
-        # 古いデータ（単なる文字列）でも、新しいデータ（辞書）でも両方対応
         if isinstance(msg, dict) and 'name' in msg:
             st.write(f"**{msg['name']}**: {msg['text']}")
         else:
-            # 辞書じゃない古いデータはそのまま文字として出す
             st.write(str(msg))
 
 # 3. LIVEスタートボタンが押された時の処理
-if start_button and user_input:
-    # ...（ここから下の「AI生成・表示処理」はさっきのままでOK！）
-
-# 2. 「LIVEスタート！」が押された時の処理
 if start_button and user_input:
     # メンター設定の準備
     mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
@@ -120,18 +116,18 @@ if start_button and user_input:
     lines = full_text.split("\n")
     for line in lines:
         if ":" in line:
-            name, text = line.split(":", 1)
-            name_clean = name.strip()
-            text_clean = text.strip()
+            name_raw, text_raw = line.split(":", 1)
+            name_clean = name_raw.strip()
+            text_clean = text_raw.strip()
             
-            # 画面に「間」を持って表示
+            # 画面に表示
             with st.chat_message("assistant"):
                 st.write(f"**{name_clean}**: {text_clean}")
             
-            # セッション（記録）に保存
+            # 記録に保存
             st.session_state.messages.append({"name": name_clean, "text": text_clean})
             
-            # 1.2秒待機してライブ感を出す
+            # 1.2秒の「間」を作る
             time.sleep(1.2)
             
 # --- メイン画面での実行エリア（ここをサイドバーの外に出す） ---
