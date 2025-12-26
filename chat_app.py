@@ -39,37 +39,50 @@ if "is_typing" not in st.session_state:
 # --- サイドバーのモード切替と入力部分を修正 ---
 with st.sidebar:
     st.title("🎙️ 配信コントロール")
+    
+    # 1. メインモードの選択
     mode = st.radio("配信モードを選択", ["🏆 ダジャレ公開処刑", "💬 戦略・10大ニュース会議"])
     
     st.divider()
+
+    # 2. ダジャレモードの時だけ「誰が投稿したか」を選択
+    custom_instruction = ""
+    if mode == "🏆 ダジャレ公開処刑":
+        target = st.selectbox("投稿者を選択", ["一般視聴者", "主催者（くだちい）"])
+        if target == "主催者（くだちい）":
+            st.warning("⚠️ 主催者モード：メンターが全員【辛口】になります")
+            custom_instruction = "【特別ルール】投稿者は主催者の「くだちい」です。身内への厳しさとして、メンター全員が容赦ない『超辛口』で採点（10点〜30点台）してください。"
+        else:
+            custom_instruction = "通常のキャラ設定に合わせた採点を行ってください。"
     
-    # 投稿者を選択できるようにする
-    contributor = st.selectbox("投稿者を選択", ["一般視聴者", "主催者（くだちい）"])
-    
-    if contributor == "主催者（くだちい）":
-        st.warning("⚠️ 主催者モード：メンター全員が「辛口」になります。")
-        user_input = st.text_input("渾身のネタを投入してください", key="owner_dajare")
-        # 主催者専用の激辛プロンプト
-        custom_instruction = """
-        【特別ルール：主催者公開処刑】
-        今日は主催者の「くだちい」が自らネタを投稿しました。
-        そのため、普段は優しいメンターたちも「身内への厳しさ」として、全員【超辛口】で評価してください。
-        「そんなネタでブログが書けると思ってるの？」「修行が足りない」など、愛の鞭をお願いします。
-        司会（Gemini）も、フォローしつつも苦笑いするような態度で。
-        平均点はあえて厳しく（10点〜30点台）算出してください。
-        """
-    else:
-        user_input = st.text_input("ネタを入力（一般枠）", key="guest_dajare")
-        custom_instruction = "通常の採点ルールで。メンターはそれぞれのキャラ設定を守ってください。"
+    user_input = st.text_input("内容を入力してね", key="input_field")
 
     if st.button("🚀 LIVEスタート！"):
-        # (中略)
-        # プロンプトの instruction 部分に custom_instruction を組み込む
-        full_prompt = f"""
-        (前述の構成案...)
-        指示: {custom_instruction}
-        内容: 「{user_input}」
-        """
+        if model and user_input:
+            st.session_state.messages = [] 
+            mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
+            
+            # --- ここでプロンプトを組み立て！ ---
+            full_prompt = f"""
+            あなたは人気チャット番組の構成作家です。以下の内容で会話劇を書いてください。
+
+            【本日のお題】: 「{user_input}」
+            【追加指示】: {custom_instruction}
+
+            【登場人物と役割】:
+            {mentor_prompts}
+
+            【番組の進行ルール（厳守）】:
+            1. [オープニング]: 司会（Gemini）が開始を宣言し、お題を紹介。
+            2. [メンター陣の採点]: 5人のメンターが感想を述べ、最後に必ず「〇〇点」と採点する。
+            3. [平均点発表]: 司会（Gemini）が5人の平均点を計算して発表する。
+            4. [師匠の総評]: 辛口師匠が平均点とネタを毒舌でぶった斬り、最後に「俺の評価は〇〇点だ！」とオチをつける。
+            5. [エンディング]: 司会（Gemini）が圧倒されつつ番組を締める。
+
+            【出力形式】: 名前: セリフ
+            """
+            
+            # (以下、生成と表示のロジック...)
             with st.spinner("スタジオ準備中..."):
                 res = model.generate_content(full_prompt)
                 lines = res.text.split('\n')
