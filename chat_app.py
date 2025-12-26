@@ -155,7 +155,7 @@ with chat_box:
                 for char in msg["content"]:
                     txt += char
                     p.markdown(txt + "▌")
-                    time.sleep(0.1) # 少し速めに設定
+                    time.sleep(0.08) # 少し速めに設定
                 p.markdown(txt)
                 if i == len(st.session_state.messages) - 1:
                     st.session_state.is_typing = False
