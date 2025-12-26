@@ -56,7 +56,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-)
+
 # --- サイドバー ---
 with st.sidebar:
     st.title("🎙️ 配信コントロール")
