@@ -40,26 +40,22 @@ if "is_typing" not in st.session_state:
 st.markdown(
     """
     <style>
-    /* メインエリア（チャット側）の背景と文字色 */
-    .stApp {
-        background-color: #1a1c24;
-    }
-    /* メインエリアのテキストだけを白くする（サイドバーを除外） */
-    [data-testid="stHeader"], [data-testid="stChatMessage"] p, .stMarkdown p {
+    .stApp { background-color: #1a1c24; }
+    /* メインエリアの文字色（白） */
+    section[data-testid="stMain"] .stMarkdown p, 
+    section[data-testid="stMain"] [data-testid="stChatMessage"] p {
         color: #ffffff !important;
     }
-    /* チャットボックスの枠 */
-    [data-testid="stChatMessage"] {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    /* サイドバーの文字色は黒（デフォルト）のままにする */
-    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
+    /* サイドバーの文字色（黒） */
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label {
         color: #31333f !important;
     }
     </style>
     """,
     unsafe_allow_html=True
+)
 )
 # --- サイドバー ---
 with st.sidebar:
