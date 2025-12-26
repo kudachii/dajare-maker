@@ -46,8 +46,6 @@ with st.sidebar:
             st.session_state.messages = [] # クリア
             mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
             
-            # 司会進行を含めたプロンプト
-            # --- サイドバー内のプロンプト作成部分を修正 ---
             # --- 司会進行・採点システム完全固定プロンプト ---
             full_prompt = f"""
             あなたは人気チャット番組の構成作家です。以下の内容で、視聴者が爆笑するような「会話劇」を書き上げてください。
