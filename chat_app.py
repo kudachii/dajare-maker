@@ -89,32 +89,54 @@ st.title(f"{mode}")
 # 放送用コンテナ
 chat_box = st.container(height=600, border=True)
 
+
 # 実行処理
 if start_button and user_input:
     if model:
-        st.session_state.messages = [] # 初期化
+        st.session_state.messages = [] # まっさらにして放送開始
         
-        # 司会の第一声を即時追加
-        opening = f"さあ始まりました！シャレテールLive！本日のお題は「{user_input}」です！メンター陣の皆さん、いかがでしょうか？"
-        st.session_state.messages.append({"role": "司会（Gemini）", "content": opening, "icon": CHARACTERS["司会（Gemini）"]["icon"]})
-        
-        # プロンプト作成
+        # キャラクター設定をAIに叩き込む
         mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
-        full_prompt = f"あなたは番組作家です。司会の「{opening}」に続く台本を書いて。構成：メンター5人採点、司会平均点発表、辛口師匠総評、司会締。形式：名前: セリフ\n設定：\n{mentor_prompts}\n指示：{custom_instruction}"
         
-        try:
-            res = model.generate_content(full_prompt)
-            for line in res.text.split('\n'):
-                if ":" in line:
-                    p = line.split(":", 1)
-                    name = p[0].replace("*", "").strip()
-                    if name in CHARACTERS and name != "司会（Gemini）":
-                        st.session_state.messages.append({"role": name, "content": p[1].strip(), "icon": CHARACTERS[name]["icon"]})
-            st.session_state.is_typing = True
-        except Exception as e:
-            st.error(f"生成エラー: {e}")
-    else:
-        st.error("AIモデルの準備ができていません。APIキーを確認してください。")
+        full_prompt = f"""
+        あなたは超一流の番組構成作家です。視聴者が釘付けになるような爆笑チャット番組の台本を書いてください。
+
+        【本日のお題】: 「{user_input}」
+        【特別ルール】: {custom_instruction}
+
+        【登場人物】:
+        {mentor_prompts}
+
+        【構成ルール（厳守）】:
+        1. 必ず「司会（Gemini）」のハイテンションな第一声から書き始めること。
+        2. 次にメンター陣5人が、それぞれの個性を爆発させて感想と採点を述べる。
+        3. 再び「司会（Gemini）」が登場し、5人の平均点（0.1点刻み）をドラマチックに発表。
+        4. 「辛口師匠」が登場。メンター全員を一喝し、毒舌の総評とともに衝撃の最終点数を出す。
+        5. 最後に「司会（Gemini）」がタジタジになりながら番組を締める。
+
+        【形式】: 名前: セリフ
+        """
+        
+        with st.spinner("スタジオの照明、点灯中..."):
+            try:
+                res = model.generate_content(full_prompt)
+                # 司会から始まる全ての台本をログに格納
+                for line in res.text.split('\n'):
+                    if ":" in line:
+                        p = line.split(":", 1)
+                        name = p[0].replace("*", "").strip()
+                        if name in CHARACTERS:
+                            st.session_state.messages.append({
+                                "role": name, 
+                                "content": p[1].strip(), 
+                                "icon": CHARACTERS[name]["icon"]
+                            })
+                
+                # これで1行目からタイピング演出が始まる！
+                st.session_state.is_typing = True
+                
+            except Exception as e:
+                st.error(f"生放送トラブル発生（生成エラー）: {e}")
 
 # 表示エリア
 with chat_box:
