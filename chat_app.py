@@ -37,7 +37,6 @@ def init_gemini():
 model = init_gemini()
 
 # --- 3. キャラクター定義 ---
-# --- 3. キャラクター定義（性格をパワーアップ！） ---
 CHARACTERS = {
     "司会（Gemini）": {
         "icon": "🤖", 
@@ -53,6 +52,7 @@ CHARACTERS = {
     "ギャル先生": {"icon": "✨", "prompt": "『マジ卍！』『それな！』と語彙力低めに、でも圧倒的なパッションで場をアゲる。常に最高得点に近い採点。"},
     "辛口師匠": {"icon": "🍶", "prompt": "江戸前っ子。メンター全員を『甘いんだよ！』と一喝し、ネタを木っ端微塵に砕く。オチとしての衝撃の点数を出す。"}
 }
+
 # セッション状態
 if "messages" not in st.session_state:
     st.session_state.messages = []
