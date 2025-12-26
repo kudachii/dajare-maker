@@ -76,9 +76,6 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 # --- ここからメインエリア（インデントを一番左に戻す） ---
-
-# --- ここから左端（インデントなし）で書き始める ---
-
 # --- ここから左端（インデントなし）で貼り付け ---
 
 # 1. ログの初期化
@@ -91,6 +88,7 @@ for msg in st.session_state.messages:
         if isinstance(msg, dict) and 'name' in msg:
             st.write(f"**{msg['name']}**: {msg['text']}")
         else:
+            # 辞書形式でない古いデータは文字として表示
             st.write(str(msg))
 
 # 3. LIVEスタートボタンが押された時の処理
@@ -129,6 +127,7 @@ if start_button and user_input:
             
             # 1.2秒の「間」を作る
             time.sleep(1.2)
+
             
 # --- メイン画面での実行エリア（ここをサイドバーの外に出す） ---
 if start_button:
