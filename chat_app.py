@@ -2,39 +2,52 @@ import streamlit as st
 import google.generativeai as genai
 import time
 import os
+import requests
+import json
+import base64
 
 # --- 1. ページ設定 ---
-st.set_page_config(page_title="Shall Tell Live 4.0", page_icon="🎙️", layout="wide")
+st.set_page_config(page_title="Shall Tell Live 5.0", page_icon="🎙️", layout="wide")
 
-# --- 音声合成用のJavaScript関数（キャラ別設定） ---
+# --- VOICEVOX連携設定 ---
+# 起動しているVOICEVOXの各キャラIDを定義
+VOX_CHARACTERS = {
+    "司会（Gemini）": 3,          # ずんだもん（ノーマル）
+    "優しさに溢れるメンター": 28,     # 四国めたん（ささやき）
+    "ツンデレな指導員": 10,        # 雨晴はう（クールな女性）
+    "頼れるお姉さん": 2,          # 四国めたん（ノーマル）
+    "論理的なビジネスコーチ": 13,    # 青山龍星（熱血系だが低音）
+    "ギャル先生": 0,              # 四国めたん（あまあま）
+    "辛口師匠": 11,               # 玄野武宏（渋いおじさん）
+}
+
 def speak_text(text, char_name):
-    # キャラクターごとの声のパラメータ
-    voice_settings = {
-        "司会（Gemini）": {"pitch": 1.1, "rate": 1.1},
-        "優しさに溢れるメンター": {"pitch": 0.9, "rate": 0.8},
-        "ツンデレな指導員": {"pitch": 1.4, "rate": 1.1},
-        "頼れるお姉さん": {"pitch": 1.0, "rate": 0.8},
-        "論理的なビジネスコーチ": {"pitch": 0.8, "rate": 0.9},
-        "ギャル先生": {"pitch": 1.5, "rate": 1.3},
-        "辛口師匠": {"pitch": 0.5, "rate": 0.8},
-    }
-    s = voice_settings.get(char_name, {"pitch": 1.0, "rate": 1.0})
+    # VOICEVOXのスピーカーIDを取得
+    speaker_id = VOX_CHARACTERS.get(char_name, 3) # 未定義ならずんだもん
     
-    # JavaScriptを生成して実行（ブラウザの音声合成API）
-    js_code = f"""
-    <script>
-    var msg = new SpeechSynthesisUtterance();
-    msg.text = "{text}";
-    msg.lang = 'ja-JP';
-    msg.pitch = {s['pitch']};
-    msg.rate = {s['rate']};
-    window.speechSynthesis.speak(msg);
-    </script>
-    """
-    # 非表示のコンテナにJavaScriptを流し込む
-    st.components.v1.html(js_code, height=0)
+    try:
+        # 1. 音声合成用のクエリを作成
+        query_res = requests.post(
+            f"http://127.0.0.1:50021/audio_query?text={text}&speaker={speaker_id}",
+            timeout=5
+        )
+        # 2. 音声データを生成 (WAVバイナリ)
+        synthesis_res = requests.post(
+            f"http://127.0.0.1:50021/synthesis?speaker={speaker_id}",
+            data=json.dumps(query_res.json()),
+            timeout=10
+        )
+        
+        # 3. 再生用のHTMLタグを生成（非表示で自動再生）
+        audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
+        audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}">'
+        st.components.v1.html(audio_tag, height=0)
+        
+    except Exception as e:
+        # VOICEVOXが起動していない場合は警告を出し、以前のJS読み上げをフォールバックとして動かす（任意）
+        st.error(f"VOICEVOXに接続できません。アプリが起動しているか確認してください。")
 
-# --- 2. モデル初期化 (エラー回避の自動探索) ---
+# --- 2. モデル初期化 ---
 def init_gemini():
     api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -66,7 +79,6 @@ CHARACTERS = {
     "辛口師匠": {"icon": "🍶", "prompt": "江戸前っ子。全員を一喝する毒舌。"}
 }
 
-# セッション状態
 if "messages" not in st.session_state: st.session_state.messages = []
 if "is_typing" not in st.session_state: st.session_state.is_typing = False
 
@@ -107,7 +119,6 @@ if start_button and user_input:
     if model:
         st.session_state.messages = []
         mentor_prompts = "\n".join([f"- {name}: {info['prompt']}" for name, info in CHARACTERS.items()])
-        # --- 修正版：プロンプト部分 ---
         full_prompt = f"""
         あなたは超一流の番組構成作家です。視聴者が釘付けになるような爆笑チャット番組の台本を書いてください。
 
@@ -120,7 +131,6 @@ if start_button and user_input:
         【構成ルール（厳守）】:
         1. 「司会（Gemini）」のハイテンションな第一声。
         2. メンター陣5人（優しさ、ツンデレ、お姉さん、論理的なビジネスコーチ、ギャル先生）が、**必ず一人ずつ順番に**感想と採点を述べる。
-           ※特に「論理的なビジネスコーチ」は、データの観点から冷徹に分析すること。
         3. 再び「司会」が平均点を発表。
         4. 「辛口師匠」が全員を一喝し、トドメの最終点数を出す。
         5. 「司会」が締める。
@@ -147,18 +157,19 @@ with chat_box:
         with st.chat_message(msg["role"], avatar=msg["icon"]):
             st.write(f"**{msg['role']}**")
             if st.session_state.is_typing:
-                # --- ここで音声を再生 ---
+                # --- VOICEVOX再生を実行 ---
                 speak_text(msg["content"], msg["role"])
                 
                 p = st.empty()
                 txt = ""
+                # VOICEVOXの生成時間を考慮し、タイピングを少しゆったりめに
                 for char in msg["content"]:
                     txt += char
                     p.markdown(txt + "▌")
-                    time.sleep(0.17)# 音声の長さに合わせ少し調整
+                    time.sleep(0.12)
                 p.markdown(txt)
                 if i == len(st.session_state.messages) - 1:
                     st.session_state.is_typing = False
-                time.sleep(1.0) # 次の人が喋るまでの「間」
+                time.sleep(0.8) # 次の人が喋るまでの間隔
             else:
                 st.write(msg["content"])
