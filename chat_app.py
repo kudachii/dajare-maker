@@ -24,7 +24,7 @@ VOX_CHARACTERS = {
 def speak_text(text, char_name):
     # VOICEVOXのスピーカーIDを取得
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
-    base_url = "http://127.0.0.1:50021"
+    base_url = "http://0.0.0.0:50021"
     
     try:
         # 1. 音声合成用のクエリを作成
