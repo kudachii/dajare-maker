@@ -22,20 +22,18 @@ VOX_CHARACTERS = {
 }
 
 def speak_text(text, char_name):
-    # VOICEVOXのスピーカーIDを取得
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
     
-    # Macで最も安定しやすいURL指定（localhostを試す）
-    base_url = "http://localhost:50021"
+    # 【ここを修正！】localhost ではなく 127.0.0.1 に固定する
+    base_url = "http://127.0.0.1:50021"
     
     try:
-        # 1. 音声合成用のクエリを作成 (タイムアウトを少し長めに設定)
+        # 1. 音声合成用のクエリを作成
         query_res = requests.post(
             f"{base_url}/audio_query",
             params={'text': text, 'speaker': speaker_id},
             timeout=10
         )
-        query_res.raise_for_status() # エラーがあればここで例外を出す
 
         # 2. 音声データを生成
         synthesis_res = requests.post(
