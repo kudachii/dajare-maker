@@ -22,15 +22,16 @@ VOX_CHARACTERS = {
 }
 
 def speak_text(text, char_name):
-    # VOICEVOXのスピーカーIDを取得
-    speaker_id = VOX_CHARACTERS.get(char_name, 3) # 未定義ならずんだもん
+    speaker_id = VOX_CHARACTERS.get(char_name, 3)
+    # URLを localhost に変えてみる
+    url = "http://localhost:50021" 
     
     try:
-        # 1. 音声合成用のクエリを作成
-        query_res = requests.post(
-            f"http://127.0.0.1:50021/audio_query?text={text}&speaker={speaker_id}",
-            timeout=5
-        )
+        # url 変数を使ってリクエスト
+        query_res = requests.post(f"{url}/audio_query?text={text}&speaker={speaker_id}", timeout=10)
+        synthesis_res = requests.post(f"{url}/synthesis?speaker={speaker_id}", data=json.dumps(query_res.json()), timeout=20)
+        # ...（以下同じ）
+        
         # 2. 音声データを生成 (WAVバイナリ)
         synthesis_res = requests.post(
             f"http://127.0.0.1:50021/synthesis?speaker={speaker_id}",
