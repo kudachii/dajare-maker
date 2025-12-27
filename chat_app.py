@@ -21,10 +21,43 @@ VOX_CHARACTERS = {
     "辛口師匠": 11,               # 玄野武宏（渋いおじさん）
 }
 
-File "/mount/src/dajare-maker/chat_app.py", line 67
-          except:
-          ^
-SyntaxError: invalid syntax
+def speak_text(text, char_name):
+    # VOICEVOXのスピーカーID設定
+    speaker_id = VOX_CHARACTERS.get(char_name, 3)
+    base_url = "http://127.0.0.1:50021"
+    
+    if not text:
+        return
+
+    try:
+        # 短いテキストでテスト送信
+        test_text = text[:50]
+        query_res = requests.post(
+            f"{base_url}/audio_query", 
+            params={'text': test_text, 'speaker': speaker_id}, 
+            timeout=5
+        )
+        
+        if query_res.status_code == 200:
+            synthesis_res = requests.post(
+                f"{base_url}/synthesis", 
+                params={'speaker': speaker_id}, 
+                data=json.dumps(query_res.json()), 
+                timeout=15
+            )
+            
+            if synthesis_res.status_code == 200:
+                audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
+                audio_tag = f'''
+                    <div style="background:#f0f2f6; padding:10px; border-radius:5px;">
+                        <audio controls autoplay src="data:audio/wav;base64,{audio_base64}" style="width:100%;"></audio>
+                    </div>
+                '''
+                st.components.v1.html(audio_tag, height=70)
+    except Exception as e:
+        st.sidebar.error(f"音声接続エラー: {e}")
+
+# --- この下の行から init_gemini() などが始まるはずです ---
             
 # --- 2. モデル初期化 ---
 def init_gemini():
