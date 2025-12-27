@@ -21,56 +21,48 @@ VOX_CHARACTERS = {
     "辛口師匠": 11,               # 玄野武宏（渋いおじさん）
 }
 
-import re
-import time
-
 def speak_text(text, char_name):
-    # 1. まずは文字を画面に出す（これが最優先！）
-    # ※既に呼び出し側で表示している場合は、ここはログ出力のみになります
-    
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
     base_url = "http://127.0.0.1:50021"
     
     if not text:
         return
 
-    # 長いセリフを分割（。！?\n で区切る）
-    sentences = re.split(r'(?<=。)|(?<=！)|(?<=？)|(?<=\n)', text)
-    
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if not sentence:
-            continue
-            
-        try:
-            # VOICEVOXへのリクエスト
-            query_res = requests.post(
-                f"{base_url}/audio_query", 
-                params={'text': sentence, 'speaker': speaker_id}, 
-                timeout=3 # タイムアウトを短くしてフリーズを防ぐ
-            )
-            if query_res.status_code == 200:
-                synthesis_res = requests.post(
-                    f"{base_url}/synthesis", 
-                    params={'speaker': speaker_id}, 
-                    data=json.dumps(query_res.json()), 
-                    timeout=10
-                )
-                if synthesis_res.status_code == 200:
-                    # 3. 再生プレイヤーを「見える形」で表示する
-        audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
+    try:
+        # 1. 通信テスト（ここが通るか？）
+        query_res = requests.post(
+            f"{base_url}/audio_query", 
+            params={'text': text[:50], 'speaker': speaker_id}, # 短くしてテスト
+            timeout=5
+        )
         
-        # あえて「controls」を付けて、再生バーを表示させます
-        audio_tag = f"""
-            <div style="background: #f0f2f6; padding: 10px; border-radius: 5px; margin-top: 5px;">
-                <small style="color: #666;">📢 {char_name} のボイスが届いたよ！</small>
-                <audio controls autoplay style="width: 100%; height: 35px;">
-                    <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
-                </audio>
-            </div>
-        """
-        # heightを100にして、プレイヤーが隠れないようにします
-        st.components.v1.html(audio_tag, height=100)
+        if query_res.status_code == 200:
+            # 2. 音声生成
+            synthesis_res = requests.post(
+                f"{base_url}/synthesis", 
+                params={'speaker': speaker_id}, 
+                data=json.dumps(query_res.json()), 
+                timeout=15
+            )
+            
+            if synthesis_res.status_code == 200:
+                # 3. 再生プレイヤーを表示
+                audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
+                audio_tag = f"""
+                    <div style="background:#eee; padding:10px; border:2px solid #000;">
+                        <p style="margin:0; font-weight:bold;">🎙️ {char_name} の声が生成されたよ！</p>
+                        <audio controls autoplay src="data:audio/wav;base64,{audio_base64}" style="width:100%;"></audio>
+                    </div>
+                """
+                st.components.v1.html(audio_tag, height=100)
+                return # 成功したらここで終了
+        
+        # もしステータスコードが200以外なら警告を出す
+        st.sidebar.warning(f"VOICEVOXが200以外の応答を返したよ: {query_res.status_code}")
+
+    except Exception as e:
+        # エラーの内容を画面に大きく出す
+        st.error(f"【重大エラー】VOICEVOXにアクセスできません: {e}")
         
         except:
             # 音声がダメでも、文字の進行を邪魔しないために何もしない
