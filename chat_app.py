@@ -24,7 +24,7 @@ VOX_CHARACTERS = {
 def speak_text(text, char_name):
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
     # Macでは 127.0.0.1 が一番安全です
-    base_url = "http://127.0.0.1:50021"
+    base_url = "host='0.0.0.0', port=50021)"
     
     try:
         # 【修正ポイント】文章をURLに直接くっつけず、データのカタマリとして送る
