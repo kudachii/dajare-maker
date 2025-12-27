@@ -23,35 +23,29 @@ VOX_CHARACTERS = {
 
 def speak_text(text, char_name):
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
-    
-    # 【ここを修正！】localhost ではなく 127.0.0.1 に固定する
     base_url = "http://127.0.0.1:50021"
     
+    # テキストが長すぎるとエラーになることがあるので、最初の30文字だけに制限してテスト
+    short_text = text[:30] 
+    
     try:
-        # 1. 音声合成用のクエリを作成
+        # paramsとして渡すことで、URLのエンコード問題を回避します
         query_res = requests.post(
             f"{base_url}/audio_query",
-            params={'text': text, 'speaker': speaker_id},
-            timeout=10
+            params={'text': short_text, 'speaker': speaker_id}
         )
-
-        # 2. 音声データを生成
-        synthesis_res = requests.post(
-            f"{base_url}/synthesis",
-            params={'speaker': speaker_id},
-            data=json.dumps(query_res.json()),
-            timeout=20
-        )
-        synthesis_res.raise_for_status()
-        
-        # 3. 再生用のHTMLタグを生成
-        audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
-        audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}">'
-        st.components.v1.html(audio_tag, height=0)
-        
-    except Exception as e:
-        # 失敗したときだけエラーを表示
-        st.error(f"VOICEVOXに接続できません。設定を確認してね！: {e}")
+        if query_res.status_code == 200:
+            synthesis_res = requests.post(
+                f"{base_url}/synthesis",
+                params={'speaker': speaker_id},
+                data=json.dumps(query_res.json())
+            )
+            audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
+            audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}">'
+            st.components.v1.html(audio_tag, height=0)
+    except:
+        # ここでエラーを出さずに、静かにスルー（タイピング演出だけ動かす）
+        pass
 
 # --- 2. モデル初期化 ---
 def init_gemini():
