@@ -48,14 +48,17 @@ def speak_text(text, char_name):
         )
         synthesis_res.raise_for_status()
         
-        # 3. ブラウザで再生（見えないように配置）
+        # 3. 再生（もし自動で鳴らなくても、ボタンを押せば100%鳴る設定）
         audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
-        audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}"></audio>'
-        st.components.v1.html(audio_tag, height=0)
-        
-    except Exception as e:
-        # 繋がらない時だけサイドバー等にこっそり出す
-        print(f"VOICEVOXエラー: {e}")
+        audio_tag = f"""
+            <div style="background-color: #f0f2f6; border-radius: 10px; padding: 5px;">
+                <p style="margin:0; font-size: 12px; color: #555;">🔊 {char_name} のボイス</p>
+                <audio autoplay="true" controls style="width: 100%; height: 30px;">
+                    <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
+                </audio>
+            </div>
+        """
+        st.components.v1.html(audio_tag, height=70) # プレイヤーが見えるように高さを出す
 
 # --- 2. モデル初期化 ---
 def init_gemini():
