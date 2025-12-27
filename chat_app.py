@@ -22,16 +22,19 @@ VOX_CHARACTERS = {
 }
 
 import re
+import time
 
 def speak_text(text, char_name):
+    # 1. まずは文字を画面に出す（これが最優先！）
+    # ※既に呼び出し側で表示している場合は、ここはログ出力のみになります
+    
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
     base_url = "http://127.0.0.1:50021"
     
     if not text:
         return
 
-    # 【新機能】長い文章を「。」や「！」で区切ってリストにする
-    # これで1回あたりの通信量を減らしてエラーを防ぎます
+    # 長いセリフを分割（。！?\n で区切る）
     sentences = re.split(r'(?<=。)|(?<=！)|(?<=？)|(?<=\n)', text)
     
     for sentence in sentences:
@@ -40,34 +43,29 @@ def speak_text(text, char_name):
             continue
             
         try:
-            # 1. クエリ作成
+            # VOICEVOXへのリクエスト
             query_res = requests.post(
                 f"{base_url}/audio_query", 
                 params={'text': sentence, 'speaker': speaker_id}, 
-                timeout=10
+                timeout=3 # タイムアウトを短くしてフリーズを防ぐ
             )
-            query_res.raise_for_status()
-
-            # 2. 音声データ生成
-            synthesis_res = requests.post(
-                f"{base_url}/synthesis", 
-                params={'speaker': speaker_id}, 
-                data=json.dumps(query_res.json()), 
-                timeout=30
-            )
-            synthesis_res.raise_for_status()
+            if query_res.status_code == 200:
+                synthesis_res = requests.post(
+                    f"{base_url}/synthesis", 
+                    params={'speaker': speaker_id}, 
+                    data=json.dumps(query_res.json()), 
+                    timeout=10
+                )
+                if synthesis_res.status_code == 200:
+                    audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
+                    audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}"></audio>'
+                    st.components.v1.html(audio_tag, height=0)
+                    # 次の文まで少し待機
+                    time.sleep(0.5)
+        except:
+            # 音声がダメでも、文字の進行を邪魔しないために何もしない
+            pass
             
-            # 3. 再生
-            audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
-            audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}"></audio>'
-            st.components.v1.html(audio_tag, height=0)
-            
-            # 連続で送るとVOICEVOXがパンクするので、少しだけ待つ
-            time.sleep(0.5)
-            
-        except Exception as e:
-            print(f"分割再生エラー: {e}")
-            continue # 1つ失敗しても次の文へ
 # --- 2. モデル初期化 ---
 def init_gemini():
     api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
