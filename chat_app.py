@@ -24,11 +24,10 @@ VOX_CHARACTERS = {
 def speak_text(text, char_name):
     # キャラクターIDの取得
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
-    
-    # 【これが正解の住所！】
     base_url = "http://127.0.0.1:50021"
     
-    if not text: return
+    if not text:
+        return
 
     try:
         # 1. 音声合成用クエリ作成
@@ -48,17 +47,21 @@ def speak_text(text, char_name):
         )
         synthesis_res.raise_for_status()
         
-        # 3. 再生（もし自動で鳴らなくても、ボタンを押せば100%鳴る設定）
+        # 3. ブラウザで再生（バーを表示して、手動でも再生できるようにする）
         audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
         audio_tag = f"""
-            <div style="background-color: #f0f2f6; border-radius: 10px; padding: 5px;">
-                <p style="margin:0; font-size: 12px; color: #555;">🔊 {char_name} のボイス</p>
+            <div style="margin: 5px 0;">
+                <p style="font-size: 10px; color: gray; margin: 0;">🔊 {char_name}</p>
                 <audio autoplay="true" controls style="width: 100%; height: 30px;">
                     <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
                 </audio>
             </div>
         """
-        st.components.v1.html(audio_tag, height=70) # プレイヤーが見えるように高さを出す
+        st.components.v1.html(audio_tag, height=60)
+        
+    except Exception as e:
+        # 失敗してもアプリが止まらないようにログだけ出す
+        st.sidebar.error(f"VOICEVOX通信エラー: {e}")
 
 # --- 2. モデル初期化 ---
 def init_gemini():
