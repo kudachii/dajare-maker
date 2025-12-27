@@ -22,42 +22,41 @@ VOX_CHARACTERS = {
 }
 
 def speak_text(text, char_name):
-    # VOICEVOXのスピーカーIDを取得
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
-    base_url = "http://0.0.0.0:50021"
+    # Macでは 127.0.0.1 が一番安全です
+    base_url = "http://127.0.0.1:50021"
     
     try:
-        # 1. 音声合成用のクエリを作成
-        query_res = requests.post(
-            f"{base_url}/audio_query",
-            params={'text': text, 'speaker': speaker_id},
-            timeout=10
-        )
+        # 【修正ポイント】文章をURLに直接くっつけず、データのカタマリとして送る
+        # 1. クエリ作成
+        query_payload = {'text': text, 'speaker': speaker_id}
+        query_res = requests.post(f"{base_url}/audio_query", params=query_payload, timeout=10)
         query_res.raise_for_status()
 
-        # 2. 音声データを生成
+        # 2. 音声合成
+        synthesis_payload = {'speaker': speaker_id}
         synthesis_res = requests.post(
             f"{base_url}/synthesis",
-            params={'speaker': speaker_id},
+            params=synthesis_payload,
             data=json.dumps(query_res.json()),
-            timeout=20
+            timeout=30
         )
         synthesis_res.raise_for_status()
         
-        # 3. 再生用のHTMLタグを生成（controlsを付けて見えるようにします）
+        # 3. 再生（プレイヤーを見えるようにする）
         audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
-        # プレイヤーを見えるようにし、自動再生(autoplay)もセット
         audio_tag = f"""
-            <audio autoplay="true" controls style="width: 100%; height: 30px;">
-                <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
-            </audio>
+            <div style="margin: 10px 0;">
+                <audio autoplay="true" controls style="width: 100%; height: 35px;">
+                    <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
+                </audio>
+            </div>
         """
-        # プレイヤーを表示するためにheightを少し持たせる
-        st.components.v1.html(audio_tag, height=50)
+        st.components.v1.html(audio_tag, height=55)
         
     except Exception as e:
-        # エラーが出た場合のみ表示
-        st.error(f"VOICEVOXエラー: {e}")
+        # エラーは出すけど、処理は止めない
+        print(f"VOICEVOX通信失敗: {e}")
 
 # --- 2. モデル初期化 ---
 def init_gemini():
