@@ -57,11 +57,21 @@ def speak_text(text, char_name):
                     timeout=10
                 )
                 if synthesis_res.status_code == 200:
-                    audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
-                    audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}"></audio>'
-                    st.components.v1.html(audio_tag, height=0)
-                    # 次の文まで少し待機
-                    time.sleep(0.5)
+                    # 3. 再生プレイヤーを「見える形」で表示する
+        audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
+        
+        # あえて「controls」を付けて、再生バーを表示させます
+        audio_tag = f"""
+            <div style="background: #f0f2f6; padding: 10px; border-radius: 5px; margin-top: 5px;">
+                <small style="color: #666;">📢 {char_name} のボイスが届いたよ！</small>
+                <audio controls autoplay style="width: 100%; height: 35px;">
+                    <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
+                </audio>
+            </div>
+        """
+        # heightを100にして、プレイヤーが隠れないようにします
+        st.components.v1.html(audio_tag, height=100)
+        
         except:
             # 音声がダメでも、文字の進行を邪魔しないために何もしない
             pass
