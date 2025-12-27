@@ -22,31 +22,38 @@ VOX_CHARACTERS = {
 }
 
 def speak_text(text, char_name):
+    # VOICEVOXのスピーカーIDを取得
     speaker_id = VOX_CHARACTERS.get(char_name, 3)
-    # URLを localhost に変えてみる
-    url = "http://localhost:50021" 
+    
+    # Macで最も安定しやすいURL指定（localhostを試す）
+    base_url = "http://localhost:50021"
     
     try:
-        # url 変数を使ってリクエスト
-        query_res = requests.post(f"{url}/audio_query?text={text}&speaker={speaker_id}", timeout=10)
-        synthesis_res = requests.post(f"{url}/synthesis?speaker={speaker_id}", data=json.dumps(query_res.json()), timeout=20)
-        # ...（以下同じ）
-        
-        # 2. 音声データを生成 (WAVバイナリ)
-        synthesis_res = requests.post(
-            f"http://127.0.0.1:50021/synthesis?speaker={speaker_id}",
-            data=json.dumps(query_res.json()),
+        # 1. 音声合成用のクエリを作成 (タイムアウトを少し長めに設定)
+        query_res = requests.post(
+            f"{base_url}/audio_query",
+            params={'text': text, 'speaker': speaker_id},
             timeout=10
         )
+        query_res.raise_for_status() # エラーがあればここで例外を出す
+
+        # 2. 音声データを生成
+        synthesis_res = requests.post(
+            f"{base_url}/synthesis",
+            params={'speaker': speaker_id},
+            data=json.dumps(query_res.json()),
+            timeout=20
+        )
+        synthesis_res.raise_for_status()
         
-        # 3. 再生用のHTMLタグを生成（非表示で自動再生）
+        # 3. 再生用のHTMLタグを生成
         audio_base64 = base64.b64encode(synthesis_res.content).decode("utf-8")
         audio_tag = f'<audio autoplay="true" src="data:audio/wav;base64,{audio_base64}">'
         st.components.v1.html(audio_tag, height=0)
         
     except Exception as e:
-        # VOICEVOXが起動していない場合は警告を出し、以前のJS読み上げをフォールバックとして動かす（任意）
-        st.error(f"VOICEVOXに接続できません。アプリが起動しているか確認してください。")
+        # 失敗したときだけエラーを表示
+        st.error(f"VOICEVOXに接続できません。設定を確認してね！: {e}")
 
 # --- 2. モデル初期化 ---
 def init_gemini():
